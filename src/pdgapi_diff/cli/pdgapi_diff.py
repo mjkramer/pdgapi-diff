@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from enum import auto, Enum
 from typing import Optional
 
+from colorama import Fore, Style
 import sqlalchemy
 from sqlalchemy import select
 
@@ -77,7 +78,8 @@ def compare(rows1: list[tuple], rows2: list[tuple],
             reverse_nearest = find_nearest(nearest, rows1, max_dist)
             assert reverse_nearest == row
             rows2_new.remove(nearest)
-            deltas.append(Update(row, nearest))
+            if nearest != row:
+                deltas.append(Update(row, nearest))
 
     for row in rows2_new:
         deltas.append(Insert(row))
@@ -85,9 +87,36 @@ def compare(rows1: list[tuple], rows2: list[tuple],
     return deltas
 
 
-def main(path1: str, path2: str, table: str,
-         max_dist = 1, exclude_cols = ['id']):
+def pprint(deltas: list[Delta]):
+    for d in deltas:
+        match d:
+            case Insert(row):
+                print(f'{Fore.GREEN}{row}{Style.RESET_ALL}')
+            case Delete(row):
+                print(f'{Fore.RED}{row}{Style.RESET_ALL}')
+            case Update(old_row, new_row):
+                changed = [v1 == v2 for v1, v2 in zip(old_row, new_row)]
+                def fmt(i, v):
+                    if changed[i]:
+                        return str(v)
+                    else:
+                        return Style.BRIGHT + str(v) + Style.RESET_ALL
+                old_strs = [fmt(i, v) for i, v in enumerate(old_row)]
+                new_strs = [fmt(i, v) for i, v in enumerate(new_row)]
+                print('(' + ','.join(old_strs) + ')')
+                print('(' + ','.join(new_strs) + ')')
+        print()
+
+
+def run_compare(path1: str, path2: str, table: str,
+                max_dist = 1, exclude_cols = ['id']):
     db1, db2 = DB(path1), DB(path2)
     rows1 = db1.get_all(table, exclude_cols)
     rows2 = db2.get_all(table, exclude_cols)
-    return compare(rows1, rows2, max_dist)
+    deltas = compare(rows1, rows2, max_dist)
+    pprint(deltas)
+
+
+def main():
+    import fire
+    fire.Fire(run_compare)
