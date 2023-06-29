@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from enum import auto, Enum
-from typing import Optional
 
 from colorama import Fore, Style
 import sqlalchemy
@@ -39,7 +38,7 @@ class DB:
         self.meta.reflect(engine)
 
     def get_all(self, table: str,
-                exclude_cols: Optional[list] = None) -> list:
+                exclude_cols: list | None = None) -> list:
         cols = list(self.meta.tables[table].columns)
         if exclude_cols:
             cols = [c for c in cols
@@ -55,7 +54,7 @@ def distance(vals1: tuple, vals2: tuple):
 
 
 def find_nearest(needle: tuple, haystack: list[tuple],
-                 max_dist: int) -> Optional[tuple]:
+                 max_dist: int) -> tuple | None:
     dists = [distance(needle, straw) for straw in haystack]
     min_dist = min(dists)
     idcs = [i for i, d in enumerate(dists) if d == min_dist]
