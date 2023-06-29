@@ -5,6 +5,8 @@ from colorama import Fore, Style
 import sqlalchemy
 from sqlalchemy import select
 
+from tqdm import tqdm
+
 
 @dataclass
 class Row:
@@ -69,7 +71,7 @@ def compare(rows1: list[tuple], rows2: list[tuple],
     deltas: list[Delta] = []
     rows2_new = set(rows2)
 
-    for row in rows1:
+    for row in tqdm(rows1):
         nearest = find_nearest(row, rows2, max_dist)
         if not nearest:
             deltas.append(Delete(row))
