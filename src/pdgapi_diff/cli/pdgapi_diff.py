@@ -62,7 +62,8 @@ def find_nearest(needle: tuple, haystack: list[tuple],
     idcs = [i for i, d in enumerate(dists) if d == min_dist]
     if min_dist > max_dist:
         return None
-    assert len(idcs) == 1
+    assert len(idcs) == 1, \
+        f'ambiguous match: {needle} --> {[haystack[i] for i in idcs]}'
     return haystack[idcs[0]]
 
 
@@ -77,7 +78,8 @@ def compare(rows1: list[tuple], rows2: list[tuple],
             deltas.append(Delete(row))
         else:
             reverse_nearest = find_nearest(nearest, rows1, max_dist)
-            assert reverse_nearest == row
+            assert reverse_nearest == row, \
+                f'asymmetry: {row} -> {nearest} <- {reverse_nearest}'
             rows2_new.remove(nearest)
             if nearest != row:
                 deltas.append(Update(row, nearest))
