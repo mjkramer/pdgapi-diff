@@ -62,6 +62,13 @@ struct DB {
   sqlite3* m_db;
 };
 
+void run(const cxxopts::ParseResult& result)
+{
+  DB db(result["db1"].as<std::string>().c_str());
+  auto v = db.get_col_names("pdgdoc", {"value", "indicator"});
+  for (auto& c : v) std::cout << c << std::endl;
+}
+
 int main(int argc, char** argv)
 {
   cxxopts::Options options("pdgapi_diff_pp", "PDG API diff tool");
@@ -69,8 +76,10 @@ int main(int argc, char** argv)
     ("h,help", "Print usage")
     ("max-dist", "Maximum distance", cxxopts::value<int>()->default_value("3"))
     ("db1", "First DB file", cxxopts::value<std::string>())
-    ("db2", "Second DB file", cxxopts::value<std::string>());
-  options.parse_positional({"db1", "db2"});
+    ("db2", "Second DB file", cxxopts::value<std::string>())
+    ("table", "Table to compare", cxxopts::value<std::string>());
+  options.parse_positional({"db1", "db2", "table"});
+  options.positional_help("db1 db2 table");
   cxxopts::ParseResult result = options.parse(argc, argv);
 
   if (result.count("help")) {
@@ -78,9 +87,12 @@ int main(int argc, char** argv)
     return 0;
   }
 
-  DB db(result["db1"].as<std::string>().c_str());
-  auto v = db.get_col_names("pdgdoc", {"value", "indicator"});
-  for (auto& c : v) std::cout << c << std::endl;
+  try {
+    run(result);
+  } catch (cxxopts::exceptions::option_has_no_value) {
+    std::cout << options.help() << std::endl;
+    return 1;
+  }
 
   return 0;
 }
