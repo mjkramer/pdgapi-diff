@@ -25,18 +25,25 @@ struct SqlVal : std::variant<long, double, std::string> {
   }
 };
 
-using SqlRow = std::vector<SqlVal>;
+struct SqlRow : std::vector<SqlVal> {
+  size_t distance(const SqlRow& other) const
+  {
+    size_t ret = 0;
+    for (size_t i = 0; i < size(); ++i) {
+      if ((*this)[i] != other[i])
+        ++ret;
+    }
+    return ret;
+  }
+};
+
 using SqlTable = std::vector<SqlRow>;
 
-struct Delta {
-  SqlRow row;
-};
+struct Insert { SqlRow row; };
+struct Delete { SqlRow row; };
+struct Update { SqlRow row, new_row; };
 
-struct Insert : Delta {};
-struct Delete : Delta {};
-struct Update : Delta {
-  SqlRow new_row;
-};
+using Delta = std::variant<Insert, Delete, Update>;
 
 struct DB {
   DB(const char* path)
@@ -109,6 +116,65 @@ struct DB {
 
   sqlite3* m_db;
 };
+
+std::optional<SqlRow>
+find_nearest(const SqlRow& needle, const SqlTable& haystack, size_t max_dist)
+{
+  size_t min_dist = 100000;
+  std::vector<const SqlRow*> matches;
+
+  for (const auto& straw : haystack) {
+    size_t dist = needle.distance(straw);
+    if (dist < min_dist) {
+      dist = min_dist;
+      matches.clear();
+    }
+    if (dist == min_dist) {
+      matches.push_back(&straw);
+    }
+  }
+
+  if (min_dist > max_dist) {
+    return std::nullopt;
+  }
+
+  if (matches.size() != 1) {
+    throw std::format("Ambiguous match!");
+  }
+
+  return *matches[0];
+}
+
+std::vector<Delta> compare(const SqlTable& rows1, const SqlTable& rows2,
+                           size_t max_dist)
+{
+  std::vector<Delta> ret;
+  std::set<SqlRow> rows2_new(rows2.begin(), rows2.end());
+
+  for (const auto& row : rows1) {
+    std::optional<SqlRow> nearest = find_nearest(row, rows2, max_dist);
+    if (not nearest.has_value()) {
+      ret.push_back(Delete(row));
+    } else {
+      std::optional<SqlRow> reverse_nearest =
+        find_nearest(nearest.value(), rows1, max_dist);
+      if ((not reverse_nearest.has_value())
+          or (reverse_nearest.value() != row)) {
+        throw std::format("Asymmetric match!");
+      } 
+      rows2_new.erase(nearest.value());
+      if (nearest.value() != row) {
+        ret.push_back(Update(row, nearest.value()));
+      }
+    }
+  }
+  
+  for (const auto& row : rows2_new) {
+    ret.push_back(Insert(row));
+  }
+
+  return ret;
+}
 
 void run(const cxxopts::ParseResult& result)
 {
