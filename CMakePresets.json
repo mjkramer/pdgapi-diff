@@ -1,0 +1,20 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 23,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "pdgsql",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "value": "vcpkg/scripts/buildsystems/vcpkg.cmake",
+          "type": "FILEPATH"
+        }
+      }
+    }
+  ]
+}
