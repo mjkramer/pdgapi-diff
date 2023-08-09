@@ -1,6 +1,9 @@
 #include <cxxopts.hpp>
 #include <sqlite3.h>
 
+#include <range/v3/numeric/accumulate.hpp>
+#include <range/v3/view/intersperse.hpp>
+
 #include <format>
 #include <iostream>
 #include <optional>
@@ -37,6 +40,10 @@ struct DB {
   SqlTable get_all(const char* table,
                    std::set<std::string> exclude_cols = {})
   {
+    std::vector<std::string> col_names = get_col_names(table, exclude_cols);
+    auto r = col_names | ranges::views::intersperse(", ");
+    auto joined_cols = ranges::accumulate(r, std::string());
+    std::cout << joined_cols << std::endl;
     return {};
   }
 
@@ -67,6 +74,7 @@ void run(const cxxopts::ParseResult& result)
   DB db(result["db1"].as<std::string>().c_str());
   auto v = db.get_col_names("pdgdoc", {"value", "indicator"});
   for (auto& c : v) std::cout << c << std::endl;
+  db.get_all("pdgdoc", {"id"});
 }
 
 int main(int argc, char** argv)

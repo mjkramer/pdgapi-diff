@@ -1,6 +1,7 @@
 {
-    "dependencies": [
+  "dependencies": [
 	"sqlite3",
-	"cxxopts"
-    ]
+	"cxxopts",
+    "range-v3"
+  ]
 }
