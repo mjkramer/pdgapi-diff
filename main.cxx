@@ -12,9 +12,21 @@
 #include <variant>
 #include <vector>
 
-typedef std::variant<long, double, std::string> SqlVal;
-typedef std::vector<SqlVal> SqlRow;
-typedef std::vector<SqlRow> SqlTable;
+struct SqlVal : std::variant<long, double, std::string> {
+  std::string as_str()
+  {
+    if (std::holds_alternative<long>(*this))
+      return std::format("{}", std::get<long>(*this));
+    if (std::holds_alternative<double>(*this))
+      return std::format("{}", std::get<double>(*this));
+    if (std::holds_alternative<std::string>(*this))
+      return std::get<std::string>(*this);
+    throw;
+  }
+};
+
+using SqlRow = std::vector<SqlVal>;
+using SqlTable = std::vector<SqlRow>;
 
 struct Delta {
   SqlRow row;
@@ -41,21 +53,50 @@ struct DB {
                    std::set<std::string> exclude_cols = {})
   {
     std::vector<std::string> col_names = get_col_names(table, exclude_cols);
+    const size_t ncol = col_names.size();
     auto r = col_names | ranges::views::intersperse(", ");
-    auto joined_cols = ranges::accumulate(r, std::string());
-    std::cout << joined_cols << std::endl;
-    return {};
+    std::string joined_cols = ranges::accumulate(r, std::string());
+    // std::cout << joined_cols << std::endl;
+    std::string sql = std::format("SELECT {} FROM {}", joined_cols, table);
+    std::cout << sql << std::endl;
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(m_db, sql.c_str(), -1, &stmt, nullptr);
+
+    SqlTable ret;
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+      SqlRow row;
+      for (size_t i = 0; i < ncol; ++i) {
+        switch (sqlite3_column_type(stmt, i)) {
+          case SQLITE_NULL:
+          case SQLITE_INTEGER:
+            row.emplace_back(sqlite3_column_int64(stmt, i));
+            break;
+          case SQLITE_FLOAT:
+            row.emplace_back(sqlite3_column_double(stmt, i));
+            break;
+          case SQLITE_BLOB:
+          case SQLITE_TEXT:
+            row.emplace_back((const char*)sqlite3_column_text(stmt, i));
+            break;
+          default:
+            throw;
+        }
+      }
+      ret.push_back(std::move(row));
+    }
+
+    sqlite3_finalize(stmt);
+    return ret;
   }
 
   std::vector<std::string>
   get_col_names(const char* table, std::set<std::string> exclude_cols = {})
   {
-    std::vector<std::string> ret;
-
     std::string sql = std::format("PRAGMA table_info({})", table);
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(m_db, sql.c_str(), -1, &stmt, nullptr);
 
+    std::vector<std::string> ret;
     while (sqlite3_step(stmt) == SQLITE_ROW) {
       std::string name = (const char*) sqlite3_column_text(stmt, 1);
       if (exclude_cols.count(name) == 0)
@@ -74,7 +115,13 @@ void run(const cxxopts::ParseResult& result)
   DB db(result["db1"].as<std::string>().c_str());
   auto v = db.get_col_names("pdgdoc", {"value", "indicator"});
   for (auto& c : v) std::cout << c << std::endl;
-  db.get_all("pdgdoc", {"id"});
+  auto table = db.get_all("pdgdoc", {"id"});
+  for (auto& row : table) {
+    for (auto& val : row) {
+      std::cout << val.as_str() << " ";
+    }
+    std::cout << std::endl;
+  }
 }
 
 int main(int argc, char** argv)
