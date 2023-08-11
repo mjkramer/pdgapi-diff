@@ -39,9 +39,15 @@ struct SqlRow : std::vector<SqlVal> {
 
 using SqlTable = std::vector<SqlRow>;
 
-struct Insert { SqlRow row; };
-struct Delete { SqlRow row; };
-struct Update { SqlRow row, new_row; };
+struct Insert {
+  SqlRow row;
+};
+struct Delete {
+  SqlRow row;
+};
+struct Update {
+  SqlRow row, new_row;
+};
 
 using Delta = std::variant<Insert, Delete, Update>;
 
@@ -51,13 +57,9 @@ struct DB {
     sqlite3_open_v2(path, &m_db, SQLITE_OPEN_READONLY, nullptr);
   }
 
-  ~DB()
-  {
-    sqlite3_close(m_db);
-  }
+  ~DB() { sqlite3_close(m_db); }
 
-  SqlTable get_all(const char* table,
-                   std::set<std::string> exclude_cols = {})
+  SqlTable get_all(const char* table, std::set<std::string> exclude_cols = {})
   {
     std::vector<std::string> col_names = get_col_names(table, exclude_cols);
     const size_t ncol = col_names.size();
@@ -74,19 +76,19 @@ struct DB {
       SqlRow row;
       for (size_t i = 0; i < ncol; ++i) {
         switch (sqlite3_column_type(stmt, i)) {
-          case SQLITE_NULL:
-          case SQLITE_INTEGER:
-            row.emplace_back(sqlite3_column_int64(stmt, i));
-            break;
-          case SQLITE_FLOAT:
-            row.emplace_back(sqlite3_column_double(stmt, i));
-            break;
-          case SQLITE_BLOB:
-          case SQLITE_TEXT:
-            row.emplace_back((const char*)sqlite3_column_text(stmt, i));
-            break;
-          default:
-            throw;
+        case SQLITE_NULL:
+        case SQLITE_INTEGER:
+          row.emplace_back(sqlite3_column_int64(stmt, i));
+          break;
+        case SQLITE_FLOAT:
+          row.emplace_back(sqlite3_column_double(stmt, i));
+          break;
+        case SQLITE_BLOB:
+        case SQLITE_TEXT:
+          row.emplace_back((const char*)sqlite3_column_text(stmt, i));
+          break;
+        default:
+          throw;
         }
       }
       ret.push_back(std::move(row));
@@ -96,8 +98,8 @@ struct DB {
     return ret;
   }
 
-  std::vector<std::string>
-  get_col_names(const char* table, std::set<std::string> exclude_cols = {})
+  std::vector<std::string> get_col_names(
+    const char* table, std::set<std::string> exclude_cols = {})
   {
     std::string sql = std::format("PRAGMA table_info({})", table);
     sqlite3_stmt* stmt;
@@ -105,7 +107,7 @@ struct DB {
 
     std::vector<std::string> ret;
     while (sqlite3_step(stmt) == SQLITE_ROW) {
-      std::string name = (const char*) sqlite3_column_text(stmt, 1);
+      std::string name = (const char*)sqlite3_column_text(stmt, 1);
       if (exclude_cols.count(name) == 0)
         ret.push_back(std::move(name));
     }
@@ -117,8 +119,8 @@ struct DB {
   sqlite3* m_db;
 };
 
-std::optional<SqlRow>
-find_nearest(const SqlRow& needle, const SqlTable& haystack, size_t max_dist)
+std::optional<SqlRow> find_nearest(const SqlRow& needle,
+                                   const SqlTable& haystack, size_t max_dist)
 {
   size_t min_dist = 100000;
   std::vector<const SqlRow*> matches;
@@ -158,17 +160,17 @@ std::vector<Delta> compare(const SqlTable& rows1, const SqlTable& rows2,
     } else {
       std::optional<SqlRow> reverse_nearest =
         find_nearest(nearest.value(), rows1, max_dist);
-      if ((not reverse_nearest.has_value())
-          or (reverse_nearest.value() != row)) {
+      if ((not reverse_nearest.has_value()) or
+          (reverse_nearest.value() != row)) {
         throw std::format("Asymmetric match!");
-      } 
+      }
       rows2_new.erase(nearest.value());
       if (nearest.value() != row) {
         ret.push_back(Update(row, nearest.value()));
       }
     }
   }
-  
+
   for (const auto& row : rows2_new) {
     ret.push_back(Insert(row));
   }
@@ -180,7 +182,8 @@ void run(const cxxopts::ParseResult& result)
 {
   DB db(result["db1"].as<std::string>().c_str());
   auto v = db.get_col_names("pdgdoc", {"value", "indicator"});
-  for (auto& c : v) std::cout << c << std::endl;
+  for (auto& c : v)
+    std::cout << c << std::endl;
   auto table = db.get_all("pdgdoc", {"id"});
   for (auto& row : table) {
     for (auto& val : row) {
@@ -193,12 +196,11 @@ void run(const cxxopts::ParseResult& result)
 int main(int argc, char** argv)
 {
   cxxopts::Options options("pdgapi_diff_pp", "PDG API diff tool");
-  options.add_options()
-    ("h,help", "Print usage")
-    ("max-dist", "Maximum distance", cxxopts::value<int>()->default_value("3"))
-    ("db1", "First DB file", cxxopts::value<std::string>())
-    ("db2", "Second DB file", cxxopts::value<std::string>())
-    ("table", "Table to compare", cxxopts::value<std::string>());
+  options.add_options()("h,help", "Print usage")(
+    "max-dist", "Maximum distance", cxxopts::value<int>()->default_value("3"))(
+    "db1", "First DB file", cxxopts::value<std::string>())(
+    "db2", "Second DB file", cxxopts::value<std::string>())(
+    "table", "Table to compare", cxxopts::value<std::string>());
   options.parse_positional({"db1", "db2", "table"});
   options.positional_help("db1 db2 table");
   cxxopts::ParseResult result = options.parse(argc, argv);
