@@ -2,9 +2,12 @@
 #include <sqlite3.h>
 
 #include <range/v3/numeric/accumulate.hpp>
+#include <range/v3/view/indices.hpp>
 #include <range/v3/view/intersperse.hpp>
+#include <range/v3/view/iota.hpp>
 
 #include <format>
+#include <iomanip>
 #include <iostream>
 #include <optional>
 #include <set>
@@ -12,30 +15,47 @@
 #include <variant>
 #include <vector>
 
-struct SqlVal : std::variant<long, double, std::string> {
-  std::string as_str()
-  {
-    if (std::holds_alternative<long>(*this))
-      return std::format("{}", std::get<long>(*this));
-    if (std::holds_alternative<double>(*this))
-      return std::format("{}", std::get<double>(*this));
-    if (std::holds_alternative<std::string>(*this))
-      return std::get<std::string>(*this);
-    throw;
-  }
-};
+using ranges::accumulate;
+using ranges::view::indices;
+using ranges::view::intersperse;
+
+struct SqlVal : std::variant<long, double, std::string> {};
+
+std::ostream& operator<<(std::ostream& os, const SqlVal& val)
+{
+  auto write = [&](auto&& v) {
+    using T = std::decay_t<decltype(v)>;
+    if constexpr (std::is_same_v<T, std::string>)
+      os << std::quoted(v);
+    else
+      os << v;
+    os << v;
+  };
+  std::visit(write, val);
+  return os;
+}
 
 struct SqlRow : std::vector<SqlVal> {
   size_t distance(const SqlRow& other) const
   {
     size_t ret = 0;
-    for (size_t i = 0; i < size(); ++i) {
+    for (auto i : indices(size())) {
       if ((*this)[i] != other[i])
         ++ret;
     }
     return ret;
   }
 };
+
+std::ostream& operator<<(std::ostream& os, const SqlRow& row)
+{
+  for (auto i : indices(row.size())) {
+    if (i > 0)
+      os << ", ";
+    os << row[i];
+  }
+  return os;
+}
 
 using SqlTable = std::vector<SqlRow>;
 
@@ -50,6 +70,20 @@ struct Update {
 };
 
 using Delta = std::variant<Insert, Delete, Update>;
+// struct Delta : public std::variant<Insert, Delete, Update> {};
+
+std::ostream& operator<<(std::ostream& os, const Delta& delta)
+{
+  if (std::holds_alternative<Insert>(delta)) {
+    os << "INSERT: " << std::get<Insert>(delta).row << "\n";
+  } else if (std::holds_alternative<Delete>(delta)) {
+    os << "DELETE: " << std::get<Delete>(delta).row << "\n";
+  } else if (std::holds_alternative<Update>(delta)) {
+    os << "UPDATE-:" << std::get<Update>(delta).row << "\n";
+    os << "UPDATE+:" << std::get<Update>(delta).new_row << "\n";
+  }
+  return os;
+}
 
 struct DB {
   DB(const char* path)
@@ -63,8 +97,8 @@ struct DB {
   {
     std::vector<std::string> col_names = get_col_names(table, exclude_cols);
     const size_t ncol = col_names.size();
-    auto r = col_names | ranges::views::intersperse(", ");
-    std::string joined_cols = ranges::accumulate(r, std::string());
+    auto r = col_names | intersperse(", ");
+    std::string joined_cols = accumulate(r, std::string());
     // std::cout << joined_cols << std::endl;
     std::string sql = std::format("SELECT {} FROM {}", joined_cols, table);
     std::cout << sql << std::endl;
@@ -153,7 +187,7 @@ std::vector<Delta> compare(const SqlTable& rows1, const SqlTable& rows2,
   std::vector<Delta> ret;
   std::set<SqlRow> rows2_new(rows2.begin(), rows2.end());
 
-  for (const auto& row : rows1) {
+  for (auto& row : rows1) {
     std::optional<SqlRow> nearest = find_nearest(row, rows2, max_dist);
     if (not nearest.has_value()) {
       ret.push_back(Delete(row));
@@ -178,7 +212,7 @@ std::vector<Delta> compare(const SqlTable& rows1, const SqlTable& rows2,
   return ret;
 }
 
-void run(const cxxopts::ParseResult& result)
+void test_run(const cxxopts::ParseResult& result)
 {
   DB db(result["db1"].as<std::string>().c_str());
   auto v = db.get_col_names("pdgdoc", {"value", "indicator"});
@@ -187,9 +221,25 @@ void run(const cxxopts::ParseResult& result)
   auto table = db.get_all("pdgdoc", {"id"});
   for (auto& row : table) {
     for (auto& val : row) {
-      std::cout << val.as_str() << " ";
+      std::cout << val << " ";
     }
     std::cout << std::endl;
+  }
+}
+
+void run(const cxxopts::ParseResult& result)
+{
+  DB db1(result["db1"].as<std::string>().c_str());
+  DB db2(result["db2"].as<std::string>().c_str());
+
+  const auto table = result["table"].as<std::string>();
+  const SqlTable rows1 = db1.get_all(table.c_str());
+  const SqlTable rows2 = db2.get_all(table.c_str());
+  const int max_dist = result["max-dist"].as<int>();
+
+  std::vector<Delta> deltas = compare(rows1, rows2, max_dist);
+  for (const auto& delta : deltas) {
+    std::cout << delta << std::endl;
   }
 }
 
