@@ -182,7 +182,7 @@ std::optional<SqlRow> find_nearest(const SqlRow& needle,
 }
 
 std::vector<Delta> compare(const SqlTable& rows1, const SqlTable& rows2,
-                           size_t max_dist)
+                           size_t max_dist, bool pedantic = false)
 {
   std::vector<Delta> ret;
   std::set<SqlRow> rows2_new(rows2.begin(), rows2.end());
@@ -192,11 +192,13 @@ std::vector<Delta> compare(const SqlTable& rows1, const SqlTable& rows2,
     if (not nearest.has_value()) {
       ret.push_back(Delete(row));
     } else {
-      std::optional<SqlRow> reverse_nearest =
-        find_nearest(nearest.value(), rows1, max_dist);
-      if ((not reverse_nearest.has_value()) or
-          (reverse_nearest.value() != row)) {
-        throw std::format("Asymmetric match!");
+      if (pedantic) {
+        std::optional<SqlRow> reverse_nearest =
+          find_nearest(nearest.value(), rows1, max_dist);
+        if ((not reverse_nearest.has_value()) or
+            (reverse_nearest.value() != row)) {
+          throw std::format("Asymmetric match!");
+        }
       }
       rows2_new.erase(nearest.value());
       if (nearest.value() != row) {
@@ -236,8 +238,9 @@ void run(const cxxopts::ParseResult& result)
   const SqlTable rows1 = db1.get_all(table.c_str());
   const SqlTable rows2 = db2.get_all(table.c_str());
   const int max_dist = result["max-dist"].as<int>();
+  const bool pedantic = result["pedantic"].as<bool>();
 
-  std::vector<Delta> deltas = compare(rows1, rows2, max_dist);
+  std::vector<Delta> deltas = compare(rows1, rows2, max_dist, pedantic);
   for (const auto& delta : deltas) {
     std::cout << delta << std::endl;
   }
@@ -246,11 +249,14 @@ void run(const cxxopts::ParseResult& result)
 int main(int argc, char** argv)
 {
   cxxopts::Options options("pdgapi_diff_pp", "PDG API diff tool");
-  options.add_options()("h,help", "Print usage")(
-    "max-dist", "Maximum distance", cxxopts::value<int>()->default_value("3"))(
-    "db1", "First DB file", cxxopts::value<std::string>())(
-    "db2", "Second DB file", cxxopts::value<std::string>())(
-    "table", "Table to compare", cxxopts::value<std::string>());
+  options.add_options(
+    "", {{"h,help", "Print usage"},
+         {"max-dist", "Maximum distance",
+          cxxopts::value<int>()->default_value("3")},
+         {"pedantic", "Pedantic mode"},
+         {"db1", "First DB file", cxxopts::value<std::string>()},
+         {"db2", "Second DB file", cxxopts::value<std::string>()},
+         {"table", "Table to compare", cxxopts::value<std::string>()}});
   options.parse_positional({"db1", "db2", "table"});
   options.positional_help("db1 db2 table");
   cxxopts::ParseResult result = options.parse(argc, argv);
