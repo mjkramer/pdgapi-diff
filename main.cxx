@@ -29,7 +29,6 @@ std::ostream& operator<<(std::ostream& os, const SqlVal& val)
       os << std::quoted(v);
     else
       os << v;
-    os << v;
   };
   std::visit(write, val);
   return os;
