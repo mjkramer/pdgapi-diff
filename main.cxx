@@ -45,6 +45,18 @@ struct SqlRow : std::vector<SqlVal> {
     }
     return ret;
   }
+
+  size_t distance_clipped(const SqlRow& other, size_t max_dist) const
+  {
+    size_t ret = 0;
+    for (auto i : indices(size())) {
+      if ((*this)[i] != other[i])
+        ++ret;
+      if (ret == max_dist + 1)
+        break;
+    }
+    return ret;
+  }
 };
 
 std::ostream& operator<<(std::ostream& os, const SqlRow& row)
@@ -160,7 +172,7 @@ std::optional<SqlRow> find_nearest(const SqlRow& needle,
   std::vector<const SqlRow*> matches;
 
   for (const auto& straw : haystack) {
-    size_t dist = needle.distance(straw);
+    size_t dist = needle.distance_clipped(straw, max_dist);
     if (dist < min_dist) {
       dist = min_dist;
       matches.clear();
