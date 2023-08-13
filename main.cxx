@@ -35,18 +35,27 @@ std::ostream& operator<<(std::ostream& os, const SqlVal& val)
 }
 
 struct SqlRow : std::vector<SqlVal> {
+  std::string pdgid;
+
   size_t distance(const SqlRow& other) const
   {
+    if (pdgid != other.pdgid)
+      return 10000;
+
     size_t ret = 0;
     for (auto i : indices(size())) {
       if ((*this)[i] != other[i])
         ++ret;
     }
+
     return ret;
   }
 
   size_t distance_clipped(const SqlRow& other, size_t max_dist) const
   {
+    if (pdgid != other.pdgid)
+      return 10000;
+
     size_t ret = 0;
     for (auto i : indices(size())) {
       if ((*this)[i] != other[i])
@@ -54,12 +63,14 @@ struct SqlRow : std::vector<SqlVal> {
       if (ret == max_dist + 1)
         break;
     }
+
     return ret;
   }
 };
 
 std::ostream& operator<<(std::ostream& os, const SqlRow& row)
 {
+  os << std::quoted(row.pdgid) << ", ";
   for (auto i : indices(row.size())) {
     if (i > 0)
       os << ", ";
@@ -119,7 +130,9 @@ struct DB {
     SqlTable ret;
     while (sqlite3_step(stmt) == SQLITE_ROW) {
       SqlRow row;
-      for (size_t i = 0; i < ncol; ++i) {
+      // Assume that the pdgid is the first column
+      row.pdgid = (const char*)sqlite3_column_text(stmt, 0);
+      for (size_t i = 1; i < ncol; ++i) {
         switch (sqlite3_column_type(stmt, i)) {
         case SQLITE_NULL:
         case SQLITE_INTEGER:
@@ -150,10 +163,16 @@ struct DB {
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(m_db, sql.c_str(), -1, &stmt, nullptr);
 
+    // We never want the id(?)
+    exclude_cols.insert("id");
+    exclude_cols.insert("parent_id");
+
     std::vector<std::string> ret;
+    // Ensure that pdgid is always the first column
+    ret.push_back("pdgid");
     while (sqlite3_step(stmt) == SQLITE_ROW) {
       std::string name = (const char*)sqlite3_column_text(stmt, 1);
-      if (exclude_cols.count(name) == 0)
+      if (exclude_cols.count(name) == 0 && name != "pdgid")
         ret.push_back(std::move(name));
     }
 
@@ -173,7 +192,7 @@ std::optional<SqlRow> find_nearest(const SqlRow& needle,
   for (const auto& straw : haystack) {
     size_t dist = needle.distance_clipped(straw, max_dist);
     if (dist < min_dist) {
-      dist = min_dist;
+      min_dist = dist;
       matches.clear();
     }
     if (dist == min_dist) {
@@ -246,8 +265,12 @@ void run(const cxxopts::ParseResult& result)
   DB db2(result["db2"].as<std::string>().c_str());
 
   const auto table = result["table"].as<std::string>();
-  const SqlTable rows1 = db1.get_all(table.c_str());
-  const SqlTable rows2 = db2.get_all(table.c_str());
+  const auto exclude_cols_v =
+    result["exclude-cols"].as<std::vector<std::string>>();
+  std::set<std::string> exclude_cols(exclude_cols_v.begin(),
+                                     exclude_cols_v.end());
+  const SqlTable rows1 = db1.get_all(table.c_str(), exclude_cols);
+  const SqlTable rows2 = db2.get_all(table.c_str(), exclude_cols);
   const int max_dist = result["max-dist"].as<int>();
   const bool pedantic = result["pedantic"].as<bool>();
 
@@ -265,6 +288,8 @@ int main(int argc, char** argv)
          {"max-dist", "Maximum distance",
           cxxopts::value<int>()->default_value("3")},
          {"pedantic", "Pedantic mode"},
+         {"exclude-cols", "Columns to exclude",
+          cxxopts::value<std::vector<std::string>>()->default_value("")},
          {"db1", "First DB file", cxxopts::value<std::string>()},
          {"db2", "Second DB file", cxxopts::value<std::string>()},
          {"table", "Table to compare", cxxopts::value<std::string>()}});
