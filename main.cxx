@@ -206,7 +206,12 @@ std::optional<SqlRow> find_nearest(const SqlRow& needle,
   }
 
   if (matches.size() != 1) {
-    throw std::format("Ambiguous match!");
+    std::cerr << "Ambiguous match!" << std::endl;
+    std::cerr << needle << std::endl;
+    for (const auto match : matches) {
+      std::cerr << *match << std::endl;
+    }
+    // throw std::format("Ambiguous match!");
   }
 
   return *matches[0];
@@ -228,7 +233,10 @@ std::vector<Delta> compare(const SqlTable& rows1, const SqlTable& rows2,
           find_nearest(nearest.value(), rows1, max_dist);
         if ((not reverse_nearest.has_value()) or
             (reverse_nearest.value() != row)) {
-          throw std::format("Asymmetric match!");
+          std::cerr << "Asymmetric match!" << std::endl;
+          std::cerr << nearest.value() << std::endl;
+          std::cerr << reverse_nearest.value() << std::endl;
+          // throw std::format("Asymmetric match!");
         }
       }
       rows2_new.erase(nearest.value());
