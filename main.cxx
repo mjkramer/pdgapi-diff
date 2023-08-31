@@ -166,6 +166,7 @@ struct DB {
     // We never want the id(?)
     exclude_cols.insert("id");
     exclude_cols.insert("parent_id");
+    exclude_cols.insert("pdgid_id");
 
     std::vector<std::string> ret;
     // Ensure that pdgid is always the first column
