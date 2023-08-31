@@ -170,13 +170,19 @@ void run(const cxxopts::ParseResult& result)
   std::set<std::string> exclude_cols(exclude_cols_v.begin(),
                                      exclude_cols_v.end());
   const SqlMap data = db.get_all(table.c_str(), exclude_cols);
+  const int max_dist = result["max-dist"].as<int>();
 
   for (const auto& [pdgid, rows] : data) {
     if (rows.size() > 1) {
-      for (const auto& row : rows) {
-        std::cout << row << std::endl;
+      for (size_t i = 1; i < rows.size(); ++i) {
+        for (size_t j = 0; j < i; ++j) {
+          if (rows[i].distance(rows[j]) <= max_dist) {
+            std::cout << rows[i] << std::endl;
+            std::cout << rows[j] << std::endl;
+            std::cout << std::endl;
+          }
+        }
       }
-      std::cout << std::endl;
     }
   }
 }
@@ -186,6 +192,8 @@ int main(int argc, char** argv)
   cxxopts::Options options("find_dups", "PDG API duplicate finder");
   options.add_options(
     "", {{"h,help", "Print usage"},
+         {"max-dist", "Maximum distance",
+          cxxopts::value<int>()->default_value("3")},
          {"exclude-cols", "Columns to exclude",
           cxxopts::value<std::vector<std::string>>()->default_value("")},
          {"db", "DB file", cxxopts::value<std::string>()},
