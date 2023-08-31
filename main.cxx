@@ -12,6 +12,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -34,8 +35,10 @@ std::ostream& operator<<(std::ostream& os, const SqlVal& val)
   return os;
 }
 
+using PdgId = std::string;
+
 struct SqlRow : std::vector<SqlVal> {
-  std::string pdgid;
+  PdgId pdgid;
 
   size_t distance(const SqlRow& other) const
   {
@@ -68,6 +71,8 @@ struct SqlRow : std::vector<SqlVal> {
   }
 };
 
+using SqlMap = std::unordered_map<PdgId, std::vector<SqlRow>>;
+
 std::ostream& operator<<(std::ostream& os, const SqlRow& row)
 {
   os << std::quoted(row.pdgid) << ", ";
@@ -78,8 +83,6 @@ std::ostream& operator<<(std::ostream& os, const SqlRow& row)
   }
   return os;
 }
-
-using SqlTable = std::vector<SqlRow>;
 
 struct Insert {
   SqlRow row;
@@ -115,7 +118,7 @@ struct DB {
 
   ~DB() { sqlite3_close(m_db); }
 
-  SqlTable get_all(const char* table, std::set<std::string> exclude_cols = {})
+  SqlMap get_all(const char* table, std::set<std::string> exclude_cols = {})
   {
     std::vector<std::string> col_names = get_col_names(table, exclude_cols);
     const size_t ncol = col_names.size();
@@ -123,11 +126,11 @@ struct DB {
     std::string joined_cols = accumulate(r, std::string());
     // std::cout << joined_cols << std::endl;
     std::string sql = std::format("SELECT {} FROM {}", joined_cols, table);
-    std::cout << sql << std::endl;
+    std::cout << sql << std::endl << std::endl;
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(m_db, sql.c_str(), -1, &stmt, nullptr);
 
-    SqlTable ret;
+    SqlMap ret;
     while (sqlite3_step(stmt) == SQLITE_ROW) {
       SqlRow row;
       // Assume that the pdgid is the first column
@@ -149,7 +152,7 @@ struct DB {
           throw;
         }
       }
-      ret.push_back(std::move(row));
+      ret[row.pdgid].push_back(std::move(row));
     }
 
     sqlite3_finalize(stmt);
@@ -184,13 +187,13 @@ struct DB {
   sqlite3* m_db;
 };
 
-std::optional<SqlRow> find_nearest(const SqlRow& needle,
-                                   const SqlTable& haystack, size_t max_dist)
+std::optional<SqlRow> find_nearest(const SqlRow& needle, const SqlMap& haystack,
+                                   size_t max_dist)
 {
   size_t min_dist = 100000;
   std::vector<const SqlRow*> matches;
 
-  for (const auto& straw : haystack) {
+  for (const auto& straw : haystack.at(needle.pdgid)) {
     size_t dist = needle.distance_clipped(straw, max_dist);
     if (dist < min_dist) {
       min_dist = dist;
@@ -217,31 +220,39 @@ std::optional<SqlRow> find_nearest(const SqlRow& needle,
   return *matches[0];
 }
 
-std::vector<Delta> compare(const SqlTable& rows1, const SqlTable& rows2,
+std::vector<Delta> compare(const SqlMap& map1, const SqlMap& map2,
                            size_t max_dist, bool pedantic = false)
 {
   std::vector<Delta> ret;
-  std::set<SqlRow> rows2_new(rows2.begin(), rows2.end());
+  // std::set<SqlRow> rows2_new(rows2.begin(), rows2.end());      // !
+  std::set<SqlRow> rows2_new;
+  for (const auto& [pdgid2, rows2] : map2) {
+    for (const auto& row : rows2) {
+      rows2_new.insert(row);
+    }
+  }
 
-  for (auto& row : rows1) {
-    std::optional<SqlRow> nearest = find_nearest(row, rows2, max_dist);
-    if (not nearest.has_value()) {
-      ret.push_back(Delete(row));
-    } else {
-      if (pedantic) {
-        std::optional<SqlRow> reverse_nearest =
-          find_nearest(nearest.value(), rows1, max_dist);
-        if ((not reverse_nearest.has_value()) or
-            (reverse_nearest.value() != row)) {
-          std::cerr << "Asymmetric match!" << std::endl;
-          std::cerr << nearest.value() << std::endl;
-          std::cerr << reverse_nearest.value() << std::endl;
-          // throw std::format("Asymmetric match!");
+  for (const auto& [pdgid, rows1] : map1) {
+    for (const auto& row : rows1) {
+      std::optional<SqlRow> nearest = find_nearest(row, map2, max_dist);
+      if (not nearest.has_value()) {
+        ret.push_back(Delete(row));
+      } else {
+        if (pedantic) {
+          std::optional<SqlRow> reverse_nearest =
+            find_nearest(nearest.value(), map1, max_dist);
+          if ((not reverse_nearest.has_value()) or
+              (reverse_nearest.value() != row)) {
+            std::cerr << "Asymmetric match!" << std::endl;
+            std::cerr << nearest.value() << std::endl;
+            std::cerr << reverse_nearest.value() << std::endl;
+            // throw std::format("Asymmetric match!");
+          }
         }
-      }
-      rows2_new.erase(nearest.value());
-      if (nearest.value() != row) {
-        ret.push_back(Update(row, nearest.value()));
+        rows2_new.erase(nearest.value());
+        if (nearest.value() != row) {
+          ret.push_back(Update(row, nearest.value()));
+        }
       }
     }
   }
@@ -253,6 +264,7 @@ std::vector<Delta> compare(const SqlTable& rows1, const SqlTable& rows2,
   return ret;
 }
 
+#if 0
 void test_run(const cxxopts::ParseResult& result)
 {
   DB db(result["db1"].as<std::string>().c_str());
@@ -267,6 +279,7 @@ void test_run(const cxxopts::ParseResult& result)
     std::cout << std::endl;
   }
 }
+#endif
 
 void run(const cxxopts::ParseResult& result)
 {
@@ -278,8 +291,8 @@ void run(const cxxopts::ParseResult& result)
     result["exclude-cols"].as<std::vector<std::string>>();
   std::set<std::string> exclude_cols(exclude_cols_v.begin(),
                                      exclude_cols_v.end());
-  const SqlTable rows1 = db1.get_all(table.c_str(), exclude_cols);
-  const SqlTable rows2 = db2.get_all(table.c_str(), exclude_cols);
+  const SqlMap rows1 = db1.get_all(table.c_str(), exclude_cols);
+  const SqlMap rows2 = db2.get_all(table.c_str(), exclude_cols);
   const int max_dist = result["max-dist"].as<int>();
   const bool pedantic = result["pedantic"].as<bool>();
 
