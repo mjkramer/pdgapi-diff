@@ -104,8 +104,8 @@ std::ostream& operator<<(std::ostream& os, const Delta& delta)
   } else if (std::holds_alternative<Delete>(delta)) {
     os << "DELETE: " << std::get<Delete>(delta).row << "\n";
   } else if (std::holds_alternative<Update>(delta)) {
-    os << "UPDATE-:" << std::get<Update>(delta).row << "\n";
-    os << "UPDATE+:" << std::get<Update>(delta).new_row << "\n";
+    os << "UPDATE-: " << std::get<Update>(delta).row << "\n";
+    os << "UPDATE+: " << std::get<Update>(delta).new_row << "\n";
   }
   return os;
 }
@@ -213,10 +213,11 @@ std::optional<SqlRow> find_nearest(const SqlRow& needle, const SqlMap& haystack,
 
   if (matches.size() != 1) {
     std::cerr << "Ambiguous match!" << std::endl;
-    std::cerr << needle << std::endl;
+    std::cerr << "FROM: " << needle << std::endl;
     for (const auto match : matches) {
-      std::cerr << *match << std::endl;
+      std::cerr << "TO:   " << *match << std::endl;
     }
+    std::cerr << std::endl;
     // throw std::format("Ambiguous match!");
   }
 
@@ -247,8 +248,9 @@ std::vector<Delta> compare(const SqlMap& map1, const SqlMap& map2,
           if ((not reverse_nearest.has_value()) or
               (reverse_nearest.value() != row)) {
             std::cerr << "Asymmetric match!" << std::endl;
-            std::cerr << nearest.value() << std::endl;
-            std::cerr << reverse_nearest.value() << std::endl;
+            std::cerr << "FROM: " << nearest.value() << std::endl;
+            std::cerr << "TO:   " << reverse_nearest.value() << std::endl;
+            std::cerr << std::endl;
             // throw std::format("Asymmetric match!");
           }
         }
