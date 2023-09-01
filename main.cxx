@@ -193,6 +193,9 @@ std::optional<SqlRow> find_nearest(const SqlRow& needle, const SqlMap& haystack,
   size_t min_dist = 100000;
   std::vector<const SqlRow*> matches;
 
+  if (haystack.count(needle.pdgid) == 0)
+    return std::nullopt;
+
   for (const auto& straw : haystack.at(needle.pdgid)) {
     size_t dist = needle.distance_clipped(straw, max_dist);
     if (dist < min_dist) {
