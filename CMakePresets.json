@@ -7,8 +7,7 @@
   },
   "configurePresets": [
     {
-      "name": "pdgsql",
-      "generator": "Ninja",
+      "name": "pdgapi_diff_pp",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": {
           "value": "vcpkg/scripts/buildsystems/vcpkg.cmake",
