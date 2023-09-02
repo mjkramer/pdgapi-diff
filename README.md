@@ -23,9 +23,9 @@ The `--exclude-cols` option specifies columns that should be ignored in the comp
 
 ## Compiling
 
-The build requirements are a recent version of CMake and a compiler with reasonable C++20 support. CMake 3.27 and GCC 13.2 are known to work. All further dependencies are automatically pulled using [vcpkg](https://github.com/microsoft/vcpkg), which does *not* need to be installed systemwide. The simplest approach is to clone `vcpkg` as a subdirectory of this one:
+The build requirements are a recent version of CMake and a compiler with reasonable C++20 support. CMake 3.20 and GCC 13.2 are known to work. All further dependencies are automatically pulled using [vcpkg](https://github.com/microsoft/vcpkg), which does *not* need to be installed systemwide. `vcpkg` will also pull a more recent version of CMake if necessary. The simplest approach is to clone `vcpkg` as a subdirectory of this one:
 
-```
+```bash
 git clone https://github.com/mjkramer/pdgapi_diff_pp.git
 cd pdgapi_diff_pp
 git clone https://github.com/microsoft/vcpkg.git
@@ -37,3 +37,17 @@ cmake --build build
 This will produce a statically linked binary `build/pdgapi_diff_pp`, which can be run on any machine regardless of what libraries may be installed. During the build, there may be a warning about `dlopen` and static linking. Disregard it.
 
 Note that the `CMakePresets.json` simply provides hints to editors/IDEs (e.g. VS Code), telling them how to invoke CMake. It should not have any effect when manually building from the command line, as above.
+
+### Using a container
+
+The `ubuntu:mantic` image is known to provide a sufficiently recent GCC, e.g.:
+
+``` bash
+podman run -it -v $PWD:/pdg ubuntu:mantic /bin/bash
+apt update
+apt install g++ cmake pkg-config git zip curl
+cd /pdg
+# compile as above
+```
+
+The resulting binary can then be run on the host OS, and the container can be deleted.
