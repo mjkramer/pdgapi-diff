@@ -22,6 +22,12 @@ using ranges::view::intersperse;
 
 struct SqlVal : std::variant<long, double, std::string> {};
 
+namespace settings {
+  bool pedantic;
+  size_t max_dist;
+  std::set<std::string> exclude_cols;
+}
+
 std::ostream& operator<<(std::ostream& os, const SqlVal& val)
 {
   auto write = [&](auto&& v) {
@@ -54,7 +60,7 @@ struct SqlRow : std::vector<SqlVal> {
     return ret;
   }
 
-  size_t distance_clipped(const SqlRow& other, size_t max_dist) const
+  size_t distance_clipped(const SqlRow& other) const
   {
     if (pdgid != other.pdgid)
       return 10000;
@@ -63,7 +69,7 @@ struct SqlRow : std::vector<SqlVal> {
     for (auto i : indices(size())) {
       if ((*this)[i] != other[i])
         ++ret;
-      if (ret == max_dist + 1)
+      if (ret == settings::max_dist + 1)
         break;
     }
 
@@ -118,9 +124,9 @@ struct DB {
 
   ~DB() { sqlite3_close(m_db); }
 
-  SqlMap get_all(const char* table, std::set<std::string> exclude_cols = {})
+  SqlMap get_all(const char* table)
   {
-    std::vector<std::string> col_names = get_col_names(table, exclude_cols);
+    std::vector<std::string> col_names = get_col_names(table);
     const size_t ncol = col_names.size();
     auto r = col_names | intersperse(", ");
     std::string joined_cols = accumulate(r, std::string());
@@ -160,23 +166,18 @@ struct DB {
   }
 
   std::vector<std::string> get_col_names(
-    const char* table, std::set<std::string> exclude_cols = {})
+    const char* table)
   {
     std::string sql = std::format("PRAGMA table_info({})", table);
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(m_db, sql.c_str(), -1, &stmt, nullptr);
-
-    // We never want the id(?)
-    exclude_cols.insert("id");
-    exclude_cols.insert("parent_id");
-    exclude_cols.insert("pdgid_id");
 
     std::vector<std::string> ret;
     // Ensure that pdgid is always the first column
     ret.push_back("pdgid");
     while (sqlite3_step(stmt) == SQLITE_ROW) {
       std::string name = (const char*)sqlite3_column_text(stmt, 1);
-      if (exclude_cols.count(name) == 0 && name != "pdgid")
+      if (settings::exclude_cols.count(name) == 0 && name != "pdgid")
         ret.push_back(std::move(name));
     }
 
@@ -187,8 +188,7 @@ struct DB {
   sqlite3* m_db;
 };
 
-std::optional<SqlRow> find_nearest(const SqlRow& needle, const SqlMap& haystack,
-                                   size_t max_dist)
+std::optional<SqlRow> find_nearest(const SqlRow& needle, const SqlMap& haystack)
 {
   size_t min_dist = 100000;
   std::vector<const SqlRow*> matches;
@@ -197,7 +197,7 @@ std::optional<SqlRow> find_nearest(const SqlRow& needle, const SqlMap& haystack,
     return std::nullopt;
 
   for (const auto& straw : haystack.at(needle.pdgid)) {
-    size_t dist = needle.distance_clipped(straw, max_dist);
+    size_t dist = needle.distance_clipped(straw);
     if (dist < min_dist) {
       min_dist = dist;
       matches.clear();
@@ -207,7 +207,7 @@ std::optional<SqlRow> find_nearest(const SqlRow& needle, const SqlMap& haystack,
     }
   }
 
-  if (min_dist > max_dist) {
+  if (min_dist > settings::max_dist) {
     return std::nullopt;
   }
 
@@ -224,8 +224,7 @@ std::optional<SqlRow> find_nearest(const SqlRow& needle, const SqlMap& haystack,
   return *matches[0];
 }
 
-std::vector<Delta> compare(const SqlMap& map1, const SqlMap& map2,
-                           size_t max_dist, bool pedantic = false)
+std::vector<Delta> compare(const SqlMap& map1, const SqlMap& map2)
 {
   std::vector<Delta> ret;
   // std::set<SqlRow> rows2_new(rows2.begin(), rows2.end());      // !
@@ -238,13 +237,13 @@ std::vector<Delta> compare(const SqlMap& map1, const SqlMap& map2,
 
   for (const auto& [pdgid, rows1] : map1) {
     for (const auto& row : rows1) {
-      std::optional<SqlRow> nearest = find_nearest(row, map2, max_dist);
+      std::optional<SqlRow> nearest = find_nearest(row, map2);
       if (not nearest.has_value()) {
         ret.push_back(Delete(row));
       } else {
-        if (pedantic) {
+        if (settings::pedantic) {
           std::optional<SqlRow> reverse_nearest =
-            find_nearest(nearest.value(), map1, max_dist);
+            find_nearest(nearest.value(), map1);
           if ((not reverse_nearest.has_value()) or
               (reverse_nearest.value() != row)) {
             std::cerr << "Asymmetric match!" << std::endl;
@@ -269,39 +268,15 @@ std::vector<Delta> compare(const SqlMap& map1, const SqlMap& map2,
   return ret;
 }
 
-#if 0
-void test_run(const cxxopts::ParseResult& result)
+void run(const char* db1_path, const char* db2_path, const char* table)
 {
-  DB db(result["db1"].as<std::string>().c_str());
-  auto v = db.get_col_names("pdgdoc", {"value", "indicator"});
-  for (auto& c : v)
-    std::cout << c << std::endl;
-  auto table = db.get_all("pdgdoc", {"id"});
-  for (auto& row : table) {
-    for (auto& val : row) {
-      std::cout << val << " ";
-    }
-    std::cout << std::endl;
-  }
-}
-#endif
+  DB db1(db1_path);
+  DB db2(db2_path);
 
-void run(const cxxopts::ParseResult& result)
-{
-  DB db1(result["db1"].as<std::string>().c_str());
-  DB db2(result["db2"].as<std::string>().c_str());
+  const SqlMap rows1 = db1.get_all(table);
+  const SqlMap rows2 = db2.get_all(table);
 
-  const auto table = result["table"].as<std::string>();
-  const auto exclude_cols_v =
-    result["exclude-cols"].as<std::vector<std::string>>();
-  std::set<std::string> exclude_cols(exclude_cols_v.begin(),
-                                     exclude_cols_v.end());
-  const SqlMap rows1 = db1.get_all(table.c_str(), exclude_cols);
-  const SqlMap rows2 = db2.get_all(table.c_str(), exclude_cols);
-  const int max_dist = result["max-dist"].as<int>();
-  const bool pedantic = result["pedantic"].as<bool>();
-
-  std::vector<Delta> deltas = compare(rows1, rows2, max_dist, pedantic);
+  std::vector<Delta> deltas = compare(rows1, rows2);
   for (const auto& delta : deltas) {
     std::cout << delta << std::endl;
   }
@@ -329,8 +304,24 @@ int main(int argc, char** argv)
     return 0;
   }
 
+  settings::max_dist = result["max-dist"].as<int>();
+  settings::pedantic = result["pedantic"].as<bool>();
+
+  const auto exclude_cols_v =
+    result["exclude-cols"].as<std::vector<std::string>>();
+  settings::exclude_cols = std::set<std::string>(exclude_cols_v.begin(),
+                                                 exclude_cols_v.end());
+  // We never want the id(?)
+  settings::exclude_cols.insert("id");
+  settings::exclude_cols.insert("parent_id");
+  settings::exclude_cols.insert("pdgid_id");
+
   try {
-    run(result);
+    const char* db1 = result["db1"].as<std::string>().c_str();
+    const char* db2 = result["db2"].as<std::string>().c_str();
+    const char* table = result["table"].as<std::string>().c_str();
+
+    run(db1, db2, table);
   } catch (cxxopts::exceptions::option_has_no_value) {
     std::cout << options.help() << std::endl;
     return 1;
