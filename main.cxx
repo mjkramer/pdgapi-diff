@@ -212,13 +212,23 @@ std::optional<SqlRow> find_nearest(const SqlRow& needle, const SqlMap& haystack)
   }
 
   if (matches.size() != 1) {
-    std::cerr << "Ambiguous match!" << std::endl;
-    std::cerr << "FROM: " << needle << std::endl;
-    for (const auto match : matches) {
-      std::cerr << "TO:   " << *match << std::endl;
+    // skip duplicates (unless in pedantic mode)
+    bool seen_multiple = false;
+    for (size_t i = 1; i < matches.size(); ++i) {
+      if (matches[i]->distance(*matches[0]) > 0) {
+        seen_multiple = true;
+        break;
+      }
     }
-    std::cerr << std::endl;
-    // throw std::format("Ambiguous match!");
+
+    if (seen_multiple or settings::pedantic) {
+      std::cerr << "Ambiguous match!" << std::endl;
+      std::cerr << "FROM: " << needle << std::endl;
+      for (const auto match : matches) {
+        std::cerr << "TO:   " << *match << std::endl;
+      }
+      std::cerr << std::endl;
+    }
   }
 
   return *matches[0];
