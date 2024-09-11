@@ -6,6 +6,7 @@
 #include <range/v3/view/intersperse.hpp>
 #include <range/v3/view/iota.hpp>
 
+#include <cmath>
 #include <format>
 #include <iomanip>
 #include <iostream>
@@ -39,6 +40,28 @@ std::ostream& operator<<(std::ostream& os, const SqlVal& val)
   };
   std::visit(write, val);
   return os;
+}
+
+bool isclose(double a, double b, double rel_tol = 1e-6, double abs_tol = 0.0)
+{
+  return std::fabs(a - b) <= std::max(rel_tol * std::max(std::fabs(a), std::fabs(b)), abs_tol);
+}
+
+bool operator==(const SqlVal& lhs, const SqlVal& rhs)
+{
+  auto compare = [&](auto&& l) {
+    using T = std::decay_t<decltype(l)>;
+    if (not std::holds_alternative<T>(rhs))
+      return false;
+    const auto r = std::get<T>(rhs);
+
+    if constexpr (std::is_same_v<T, double>)
+      return isclose(l, r);
+    else
+      return l == r;
+  };
+
+  return std::visit(compare, lhs);
 }
 
 using Ident = std::string;
@@ -110,6 +133,7 @@ std::ostream& operator<<(std::ostream& os, const Delta& delta)
   } else if (std::holds_alternative<Delete>(delta)) {
     os << "DELETE: " << std::get<Delete>(delta).row << "\n";
   } else if (std::holds_alternative<Update>(delta)) {
+    os << std::setprecision(30);
     os << "UPDATE-: " << std::get<Update>(delta).row << "\n";
     os << "UPDATE+: " << std::get<Update>(delta).new_row << "\n";
   }
