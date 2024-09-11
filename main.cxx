@@ -41,14 +41,14 @@ std::ostream& operator<<(std::ostream& os, const SqlVal& val)
   return os;
 }
 
-using PdgId = std::string;
+using Ident = std::string;
 
 struct SqlRow : std::vector<SqlVal> {
-  PdgId pdgid;
+  Ident ident;
 
   size_t distance(const SqlRow& other) const
   {
-    if (pdgid != other.pdgid)
+    if (ident != other.ident)
       return 10000;
 
     size_t ret = 0;
@@ -62,7 +62,7 @@ struct SqlRow : std::vector<SqlVal> {
 
   size_t distance_clipped(const SqlRow& other) const
   {
-    if (pdgid != other.pdgid)
+    if (ident != other.ident)
       return 10000;
 
     size_t ret = 0;
@@ -77,11 +77,11 @@ struct SqlRow : std::vector<SqlVal> {
   }
 };
 
-using SqlMap = std::unordered_map<PdgId, std::vector<SqlRow>>;
+using SqlMap = std::unordered_map<Ident, std::vector<SqlRow>>;
 
 std::ostream& operator<<(std::ostream& os, const SqlRow& row)
 {
-  os << std::quoted(row.pdgid) << ", ";
+  os << std::quoted(row.ident) << ", ";
   for (auto i : indices(row.size())) {
     if (i > 0)
       os << ", ";
@@ -116,6 +116,8 @@ std::ostream& operator<<(std::ostream& os, const Delta& delta)
   return os;
 }
 
+const char* get_ident_col(const char* table);
+
 struct DB {
   DB(const char* path)
   {
@@ -139,8 +141,8 @@ struct DB {
     SqlMap ret;
     while (sqlite3_step(stmt) == SQLITE_ROW) {
       SqlRow row;
-      // Assume that the pdgid is the first column
-      row.pdgid = (const char*)sqlite3_column_text(stmt, 0);
+      // get_col_names ensures that the ident is the first column
+      row.ident = (const char*)sqlite3_column_text(stmt, 0);
       for (size_t i = 1; i < ncol; ++i) {
         switch (sqlite3_column_type(stmt, i)) {
         case SQLITE_NULL:
@@ -158,7 +160,7 @@ struct DB {
           throw;
         }
       }
-      ret[row.pdgid].push_back(std::move(row));
+      ret[row.ident].push_back(std::move(row));
     }
 
     sqlite3_finalize(stmt);
@@ -173,11 +175,12 @@ struct DB {
     sqlite3_prepare_v2(m_db, sql.c_str(), -1, &stmt, nullptr);
 
     std::vector<std::string> ret;
-    // Ensure that pdgid is always the first column
-    ret.push_back("pdgid");
+    // Ensure that the ident is always the first column
+    const char* ident_col = get_ident_col(table);
+    ret.push_back(ident_col);
     while (sqlite3_step(stmt) == SQLITE_ROW) {
       std::string name = (const char*)sqlite3_column_text(stmt, 1);
-      if (settings::exclude_cols.count(name) == 0 && name != "pdgid")
+      if (settings::exclude_cols.count(name) == 0 && name != ident_col)
         ret.push_back(std::move(name));
     }
 
@@ -193,10 +196,10 @@ std::optional<SqlRow> find_nearest(const SqlRow& needle, const SqlMap& haystack)
   size_t min_dist = 100000;
   std::vector<const SqlRow*> matches;
 
-  if (haystack.count(needle.pdgid) == 0)
+  if (haystack.count(needle.ident) == 0)
     return std::nullopt;
 
-  for (const auto& straw : haystack.at(needle.pdgid)) {
+  for (const auto& straw : haystack.at(needle.ident)) {
     size_t dist = needle.distance_clipped(straw);
     if (dist < min_dist) {
       min_dist = dist;
@@ -239,13 +242,13 @@ std::vector<Delta> compare(const SqlMap& map1, const SqlMap& map2)
   std::vector<Delta> ret;
   // std::set<SqlRow> rows2_new(rows2.begin(), rows2.end());      // !
   std::set<SqlRow> rows2_new;
-  for (const auto& [pdgid2, rows2] : map2) {
+  for (const auto& [ident2, rows2] : map2) {
     for (const auto& row : rows2) {
       rows2_new.insert(row);
     }
   }
 
-  for (const auto& [pdgid, rows1] : map1) {
+  for (const auto& [ident, rows1] : map1) {
     for (const auto& row : rows1) {
       std::optional<SqlRow> nearest = find_nearest(row, map2);
       if (not nearest.has_value()) {
@@ -290,6 +293,23 @@ void run(const char* db1_path, const char* db2_path, const char* table)
   for (const auto& delta : deltas) {
     std::cout << delta << std::endl;
   }
+}
+
+const char* get_ident_col(const char* table)
+{
+  std::string t(table);
+
+  if (t == "pdgid" ||
+      t == "pdgparticle" ||
+      t == "pdgdata" ||
+      t == "pdgdecay")
+    return "pdgid";
+
+  if (t == "pdgitem" ||
+      t == "pdgitem_map")
+    return "name";
+
+  throw;
 }
 
 int main(int argc, char** argv)
