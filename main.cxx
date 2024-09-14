@@ -21,6 +21,10 @@ using ranges::accumulate;
 using ranges::view::indices;
 using ranges::view::intersperse;
 
+#define ANSI_RESET "\033[0m"
+#define ANSI_RED   "\033[31m"
+#define ANSI_GREEN "\033[32m"
+
 struct SqlVal : std::variant<long, double, std::string> {};
 
 namespace settings {
@@ -44,7 +48,8 @@ std::ostream& operator<<(std::ostream& os, const SqlVal& val)
 
 bool isclose(double a, double b, double rel_tol = 1e-6, double abs_tol = 0.0)
 {
-  return std::fabs(a - b) <= std::max(rel_tol * std::max(std::fabs(a), std::fabs(b)), abs_tol);
+  const auto max_abs = std::max(std::fabs(a), std::fabs(b));
+  return std::fabs(a - b) <= std::max(rel_tol * max_abs, abs_tol);
 }
 
 bool operator==(const SqlVal& lhs, const SqlVal& rhs)
@@ -76,20 +81,7 @@ struct SqlRow : std::vector<SqlVal> {
 
     size_t ret = 0;
     for (auto i : indices(size())) {
-      if ((*this)[i] != other[i])
-        ++ret;
-    }
-
-    return ret;
-  }
-
-  size_t distance_clipped(const SqlRow& other) const
-  {
-    if (ident != other.ident)
-      return 10000;
-
-    size_t ret = 0;
-    for (auto i : indices(size())) {
+      // This calls "isclose" when the column is floating-point
       if ((*this)[i] != other[i])
         ++ret;
       if (ret == settings::max_dist + 1)
@@ -98,18 +90,40 @@ struct SqlRow : std::vector<SqlVal> {
 
     return ret;
   }
+
+  std::string str(const SqlRow* other = nullptr,
+                  const char* hl_ansi_color = nullptr) const
+  {
+    std::ostringstream os;
+
+    os << std::quoted(ident) << ", ";
+    for (auto i : indices(size())) {
+      const bool highlight = other && (*this)[i] != (*other)[i];
+      if (i > 0)
+        os << ", ";
+      if (highlight) os << hl_ansi_color;
+      os << (*this)[i];
+      if (highlight) os << ANSI_RESET;
+    }
+    return os.str();
+  }
+
+  std::string hl_diffs_to(const SqlRow& other) const
+  {
+    return str(&other, ANSI_RED);
+  }
+
+  std::string hl_diffs_from(const SqlRow& other) const
+  {
+    return str(&other, ANSI_GREEN);
+  }
 };
 
 using SqlMap = std::unordered_map<Ident, std::vector<SqlRow>>;
 
 std::ostream& operator<<(std::ostream& os, const SqlRow& row)
 {
-  os << std::quoted(row.ident) << ", ";
-  for (auto i : indices(row.size())) {
-    if (i > 0)
-      os << ", ";
-    os << row[i];
-  }
+  os << row.str();
   return os;
 }
 
@@ -133,9 +147,10 @@ std::ostream& operator<<(std::ostream& os, const Delta& delta)
   } else if (std::holds_alternative<Delete>(delta)) {
     os << "DELETE: " << std::get<Delete>(delta).row << "\n";
   } else if (std::holds_alternative<Update>(delta)) {
-    os << std::setprecision(30);
-    os << "UPDATE-: " << std::get<Update>(delta).row << "\n";
-    os << "UPDATE+: " << std::get<Update>(delta).new_row << "\n";
+    // os << std::setprecision(30);
+    const auto update = std::get<Update>(delta);
+    os << "UPDATE-: " << update.row.hl_diffs_to(update.new_row) << "\n";
+    os << "UPDATE+: " << update.new_row.hl_diffs_from(update.row) << "\n";
   }
   return os;
 }
@@ -224,7 +239,7 @@ std::optional<SqlRow> find_nearest(const SqlRow& needle, const SqlMap& haystack)
     return std::nullopt;
 
   for (const auto& straw : haystack.at(needle.ident)) {
-    size_t dist = needle.distance_clipped(straw);
+    size_t dist = needle.distance(straw);
     if (dist < min_dist) {
       min_dist = dist;
       matches.clear();
