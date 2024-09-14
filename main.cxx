@@ -24,6 +24,7 @@ using ranges::view::intersperse;
 #define ANSI_RESET "\033[0m"
 #define ANSI_RED   "\033[31m"
 #define ANSI_GREEN "\033[32m"
+#define ANSI_CYAN  "\033[36m"
 
 struct SqlVal : std::variant<long, double, std::string> {};
 
@@ -142,15 +143,27 @@ using Delta = std::variant<Insert, Delete, Update>;
 
 std::ostream& operator<<(std::ostream& os, const Delta& delta)
 {
+  auto red = [&](const char* str) {
+    return std::string(ANSI_RED) + str + ANSI_RESET;
+  };
+
+  auto green = [&](const char* str) {
+    return std::string(ANSI_GREEN) + str + ANSI_RESET;
+  };
+
+  auto cyan = [&](const char* str) {
+    return std::string(ANSI_CYAN) + str + ANSI_RESET;
+  };
+
   if (std::holds_alternative<Insert>(delta)) {
-    os << "INSERT: " << std::get<Insert>(delta).row << "\n";
+    os << green("INSERT: ") << std::get<Insert>(delta).row << "\n";
   } else if (std::holds_alternative<Delete>(delta)) {
-    os << "DELETE: " << std::get<Delete>(delta).row << "\n";
+    os << red("DELETE: ") << std::get<Delete>(delta).row << "\n";
   } else if (std::holds_alternative<Update>(delta)) {
     // os << std::setprecision(30);
     const auto update = std::get<Update>(delta);
-    os << "UPDATE-: " << update.row.hl_diffs_to(update.new_row) << "\n";
-    os << "UPDATE+: " << update.new_row.hl_diffs_from(update.row) << "\n";
+    os << cyan("UPDATE-: ") << update.row.hl_diffs_to(update.new_row) << "\n";
+    os << cyan("UPDATE+: ") << update.new_row.hl_diffs_from(update.row) << "\n";
   }
   return os;
 }
