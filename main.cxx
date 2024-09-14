@@ -26,24 +26,31 @@ using ranges::view::intersperse;
 #define ANSI_GREEN "\033[32m"
 #define ANSI_CYAN  "\033[36m"
 
-struct SqlVal : std::variant<long, double, std::string> {};
-
 namespace settings {
   bool pedantic;
   size_t max_dist;
   std::set<std::string> exclude_cols;
 }
 
+struct SqlVal : std::variant<long, double, std::string> {
+  std::string str() const
+  {
+    std::ostringstream os;
+    auto write = [&](auto&& v) {
+      using T = std::decay_t<decltype(v)>;
+      if constexpr (std::is_same_v<T, std::string>)
+        os << std::quoted(v);
+      else
+        os << v;
+    };
+    std::visit(write, *this);
+    return os.str();
+  }
+};
+
 std::ostream& operator<<(std::ostream& os, const SqlVal& val)
 {
-  auto write = [&](auto&& v) {
-    using T = std::decay_t<decltype(v)>;
-    if constexpr (std::is_same_v<T, std::string>)
-      os << std::quoted(v);
-    else
-      os << v;
-  };
-  std::visit(write, val);
+  os << val.str();
   return os;
 }
 
@@ -99,12 +106,17 @@ struct SqlRow : std::vector<SqlVal> {
 
     os << std::quoted(ident) << ", ";
     for (auto i : indices(size())) {
-      const bool highlight = other && (*this)[i] != (*other)[i];
       if (i > 0)
         os << ", ";
-      if (highlight) os << hl_ansi_color;
-      os << (*this)[i];
-      if (highlight) os << ANSI_RESET;
+      if (other) {
+        const size_t width = std::max((*this)[i].str().size(),
+                                      (*other)[i].str().size());
+        const bool highlight = (*this)[i] != (*other)[i];
+        if (highlight) os << hl_ansi_color;
+        os << std::setw(width) << (*this)[i] << std::setw(0);
+        if (highlight) os << ANSI_RESET;
+      } else
+        os << (*this)[i];
     }
     return os.str();
   }
