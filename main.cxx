@@ -32,7 +32,8 @@ namespace settings {
   std::set<std::string> exclude_cols;
 }
 
-struct SqlVal : std::variant<long, double, std::string> {
+// void* represents a NULL
+struct SqlVal : std::variant<void*, long, double, std::string> {
   std::string str() const
   {
     std::ostringstream os;
@@ -40,6 +41,8 @@ struct SqlVal : std::variant<long, double, std::string> {
       using T = std::decay_t<decltype(v)>;
       if constexpr (std::is_same_v<T, std::string>)
         os << std::quoted(v);
+      else if constexpr (std::is_same_v<T, void*>)
+        os << "NULL";
       else
         os << v;
     };
@@ -210,6 +213,8 @@ struct DB {
       for (size_t i = 1; i < ncol; ++i) {
         switch (sqlite3_column_type(stmt, i)) {
         case SQLITE_NULL:
+          row.emplace_back(nullptr);
+          break;
         case SQLITE_INTEGER:
           row.emplace_back(sqlite3_column_int64(stmt, i));
           break;
