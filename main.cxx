@@ -195,15 +195,11 @@ struct DB {
 
   SqlMap get_all(const char* table)
   {
-    std::vector<std::string> col_names = get_col_names(table);
-    const size_t ncol = col_names.size();
-    auto r = col_names | intersperse(", ");
-    std::string joined_cols = accumulate(r, std::string());
-    // std::cout << joined_cols << std::endl;
-    std::string sql = std::format("SELECT {} FROM {}", joined_cols, table);
+    std::string sql = get_table_query(table);
     std::cout << sql << std::endl << std::endl;
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(m_db, sql.c_str(), -1, &stmt, nullptr);
+    const size_t ncol = sqlite3_column_count(stmt);
 
     SqlMap ret;
     while (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -234,6 +230,20 @@ struct DB {
 
     sqlite3_finalize(stmt);
     return ret;
+  }
+
+  std::string get_table_query(const char* table)
+  {
+    // Special case for pdgitem_map
+    if (std::string_view(table) == "pdgitem_map") {
+      return "SELECT pdgitem_map.name AS name, pdgitem.name AS target_name, sort "
+        "FROM pdgitem_map JOIN pdgitem ON target_id == pdgitem.id";
+    }
+
+    std::vector<std::string> col_names = get_col_names(table);
+    auto r = col_names | intersperse(", ");
+    std::string joined_cols = accumulate(r, std::string());
+    return std::format("SELECT {} FROM {}", joined_cols, table);
   }
 
   std::vector<std::string> get_col_names(
