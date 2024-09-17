@@ -399,6 +399,7 @@ int main(int argc, char** argv)
          {"max-dist", "Maximum distance",
           cxxopts::value<int>()->default_value("3")},
          {"pedantic", "Pedantic mode"},
+         {"include-primary-keys", "Show differences between primary keys"},
          {"exclude-cols", "Columns to exclude",
           cxxopts::value<std::vector<std::string>>()->default_value("")},
          {"db1", "First DB file", cxxopts::value<std::string>()},
@@ -420,10 +421,12 @@ int main(int argc, char** argv)
     result["exclude-cols"].as<std::vector<std::string>>();
   settings::exclude_cols = std::set<std::string>(exclude_cols_v.begin(),
                                                  exclude_cols_v.end());
-  // We never want the id(?)
-  settings::exclude_cols.insert("id");
-  settings::exclude_cols.insert("parent_id");
-  settings::exclude_cols.insert("pdgid_id");
+
+  if (not result["include-primary-keys"].as<bool>()) {
+    settings::exclude_cols.insert("id");
+    settings::exclude_cols.insert("parent_id");
+    settings::exclude_cols.insert("pdgid_id");
+  }
 
   try {
     const char* db1 = result["db1"].as<std::string>().c_str();
