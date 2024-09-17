@@ -34,6 +34,10 @@ size_t max_dist;
 std::set<std::string> exclude_cols;
 }
 
+namespace constants {
+std::set<std::string> strict_cols = { "value_type" };
+}
+
 // void* represents a NULL
 struct SqlVal : std::variant<void*, long, double, std::string> {
   std::string str() const
@@ -84,6 +88,10 @@ bool operator==(const SqlVal& lhs, const SqlVal& rhs)
 
 using Ident = std::string;
 
+// forward declarations
+struct SqlRow;
+std::ostream& operator<<(std::ostream& os, const SqlRow& row);
+
 struct SqlRow : std::vector<SqlVal> {
   Ident ident;
   const std::vector<std::string>& col_names;
@@ -99,8 +107,12 @@ struct SqlRow : std::vector<SqlVal> {
     size_t ret = 0;
     for (auto i : indices(size())) {
       // This calls "isclose" when the column is floating-point
-      if ((*this)[i] != other[i])
+      if ((*this)[i] != other[i]) {
         ++ret;
+        if (constants::strict_cols.count(col_names[i])) {
+          return 5000;
+        }
+      }
       if (ret == settings::max_dist + 1)
         break;
     }
@@ -211,7 +223,8 @@ struct DB {
 
     SqlMap ret;
 
-    for (size_t i = 0; i < ncol; ++i) {
+    // We start at i = 1 to exclude the "ident" column
+    for (size_t i = 1; i < ncol; ++i) {
       ret.col_names.push_back(sqlite3_column_name(stmt, i));
     }
 
@@ -285,7 +298,7 @@ struct DB {
 
 std::optional<SqlRow> find_nearest(const SqlRow& needle, const SqlMap& haystack)
 {
-  size_t min_dist = 100000;
+  size_t min_dist = 1000;
   std::vector<const SqlRow*> matches;
 
   if (haystack.count(needle.ident) == 0)
