@@ -383,7 +383,7 @@ void run(const char* db1_path, const char* db2_path, const char* table)
 
 const char* get_ident_col(const char* table)
 {
-  std::string t(table);
+  std::string_view t(table);
 
   if (t == "pdgid" ||
       t == "pdgparticle" ||
