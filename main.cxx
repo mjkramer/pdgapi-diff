@@ -27,11 +27,11 @@ using ranges::view::intersperse;
 #define ANSI_CYAN  "\033[36m"
 
 namespace settings {
-  bool pedantic;
-  bool only_updates;
-  bool no_updates;
-  size_t max_dist;
-  std::set<std::string> exclude_cols;
+bool pedantic;
+bool only_updates;
+bool no_updates;
+size_t max_dist;
+std::set<std::string> exclude_cols;
 }
 
 // void* represents a NULL
