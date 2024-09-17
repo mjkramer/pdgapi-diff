@@ -86,6 +86,10 @@ using Ident = std::string;
 
 struct SqlRow : std::vector<SqlVal> {
   Ident ident;
+  const std::vector<std::string>& col_names;
+
+  SqlRow(const std::vector<std::string>& col_names) :
+    col_names(col_names) {}
 
   size_t distance(const SqlRow& other) const
   {
@@ -137,7 +141,9 @@ struct SqlRow : std::vector<SqlVal> {
   }
 };
 
-using SqlMap = std::unordered_map<Ident, std::vector<SqlRow>>;
+struct SqlMap : std::unordered_map<Ident, std::vector<SqlRow>> {
+  std::vector<std::string> col_names;
+};
 
 std::ostream& operator<<(std::ostream& os, const SqlRow& row)
 {
@@ -204,8 +210,13 @@ struct DB {
     const size_t ncol = sqlite3_column_count(stmt);
 
     SqlMap ret;
+
+    for (size_t i = 0; i < ncol; ++i) {
+      ret.col_names.push_back(sqlite3_column_name(stmt, i));
+    }
+
     while (sqlite3_step(stmt) == SQLITE_ROW) {
-      SqlRow row;
+      SqlRow row(ret.col_names);
       // get_col_names ensures that the ident is the first column
       row.ident = (const char*)sqlite3_column_text(stmt, 0);
       for (size_t i = 1; i < ncol; ++i) {
