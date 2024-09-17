@@ -28,6 +28,8 @@ using ranges::view::intersperse;
 
 namespace settings {
   bool pedantic;
+  bool only_updates;
+  bool no_updates;
   size_t max_dist;
   std::set<std::string> exclude_cols;
 }
@@ -370,6 +372,11 @@ void run(const char* db1_path, const char* db2_path, const char* table)
 
   std::vector<Delta> deltas = compare(rows1, rows2);
   for (const auto& delta : deltas) {
+    const bool is_update = std::holds_alternative<Update>(delta);
+    if (settings::only_updates and not is_update)
+      continue;
+    if (settings::no_updates and is_update)
+      continue;
     std::cout << delta << std::endl;
   }
 }
@@ -400,6 +407,8 @@ int main(int argc, char** argv)
           cxxopts::value<int>()->default_value("3")},
          {"pedantic", "Pedantic mode"},
          {"include-primary-keys", "Show differences between primary keys"},
+         {"only-updates", "Show only UPDATES, not INSERTS or DELETES"},
+         {"no-updates", "Don't show UPDATES, just INSERTS and DELETES"},
          {"exclude-cols", "Columns to exclude",
           cxxopts::value<std::vector<std::string>>()->default_value("")},
          {"db1", "First DB file", cxxopts::value<std::string>()},
@@ -416,6 +425,13 @@ int main(int argc, char** argv)
 
   settings::max_dist = result["max-dist"].as<int>();
   settings::pedantic = result["pedantic"].as<bool>();
+  settings::only_updates = result["only-updates"].as<bool>();
+  settings::no_updates = result["no-updates"].as<bool>();
+
+  if (settings::only_updates and settings::no_updates) {
+    std::cerr << "--only-updates and --no-updates are mutually exclusive" << std::endl;
+    return 1;
+  }
 
   const auto exclude_cols_v =
     result["exclude-cols"].as<std::vector<std::string>>();
