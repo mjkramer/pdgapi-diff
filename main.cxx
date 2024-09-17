@@ -206,8 +206,14 @@ std::ostream& operator<<(std::ostream& os, const Delta& delta)
 const char* get_ident_col(const char* table);
 
 struct DB {
+  // The index is currently just used to avoid printing the same thing multiple
+  // times (see get_all)
+  static inline size_t next_db_index = 0;
+  size_t db_index;
+
   DB(const char* path)
   {
+    db_index = next_db_index++;
     sqlite3_open_v2(path, &m_db, SQLITE_OPEN_READONLY, nullptr);
   }
 
@@ -216,7 +222,8 @@ struct DB {
   SqlMap get_all(const char* table)
   {
     std::string sql = get_table_query(table);
-    std::cout << sql << std::endl << std::endl;
+    if (db_index == 0)
+      std::cout << sql << std::endl << std::endl;
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(m_db, sql.c_str(), -1, &stmt, nullptr);
     const size_t ncol = sqlite3_column_count(stmt);
