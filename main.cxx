@@ -466,6 +466,7 @@ int main(int argc, char** argv)
     settings::exclude_cols.insert("id");
     settings::exclude_cols.insert("parent_id");
     settings::exclude_cols.insert("pdgid_id");
+    settings::exclude_cols.insert("pdgitem_id");
   }
 
   try {
