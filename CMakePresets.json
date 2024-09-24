@@ -7,7 +7,7 @@
   },
   "configurePresets": [
     {
-      "name": "pdgapi_diff_pp",
+      "name": "pdgapi-diff",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": {
           "value": "vcpkg/scripts/buildsystems/vcpkg.cmake",
