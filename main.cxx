@@ -7,6 +7,7 @@
 #include <range/v3/view/iota.hpp>
 
 #include <cmath>
+#include <filesystem>
 #include <format>
 #include <iomanip>
 #include <iostream>
@@ -37,7 +38,7 @@ bool no_color;
 }
 
 namespace constants {
-std::set<std::string> strict_cols = { "value_type" };
+const std::set<std::string> strict_cols = { "value_type" };
 }
 
 // void* represents a NULL
@@ -447,7 +448,10 @@ const char* get_ident_col(const char* table)
 
 int main(int argc, char** argv)
 {
-  cxxopts::Options options("pdgapi_diff_pp", "PDG API diff tool");
+  const std::string progname =
+    std::filesystem::path(argv[0]).filename().string();
+
+  cxxopts::Options options(progname.c_str(), "PDG API diff tool");
   options.add_options(
     "", {{"h,help", "Print usage"},
          {"max-dist", "Maximum distance",
