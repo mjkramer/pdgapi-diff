@@ -32,6 +32,8 @@ bool only_updates;
 bool no_updates;
 size_t max_dist;
 std::set<std::string> exclude_cols;
+std::string align;
+bool no_color;
 }
 
 namespace constants {
@@ -130,12 +132,19 @@ struct SqlRow : std::vector<SqlVal> {
       if (i > 0)
         os << ", ";
       if (other) {
-        const size_t width = std::max((*this)[i].str().size(),
-                                      (*other)[i].str().size());
         const bool highlight = (*this)[i] != (*other)[i];
-        if (highlight) os << hl_ansi_color;
-        os << std::setw(width) << (*this)[i] << std::setw(0);
-        if (highlight) os << ANSI_RESET;
+        if (highlight and not settings::no_color) os << hl_ansi_color;
+
+        if (settings::align == "none")
+          os << (*this)[i];
+        else {
+          const size_t width = std::max((*this)[i].str().size(),
+                                        (*other)[i].str().size());
+          const auto align = settings::align == "left" ? std::left : std::right;
+          os << align << std::setw(width) << (*this)[i] << std::setw(0);
+        }
+
+        if (highlight and not settings::no_color) os << ANSI_RESET;
       } else
         os << (*this)[i];
     }
@@ -178,16 +187,23 @@ using Delta = std::variant<Insert, Delete, Update>;
 
 std::ostream& operator<<(std::ostream& os, const Delta& delta)
 {
+  auto color = [&](const char* str, const char* ansi) {
+    if (not settings::no_color)
+      return std::string(ansi) + str + ANSI_RESET;
+    else
+      return std::string(str);
+  };
+
   auto red = [&](const char* str) {
-    return std::string(ANSI_RED) + str + ANSI_RESET;
+    return color(str, ANSI_RED);
   };
 
   auto green = [&](const char* str) {
-    return std::string(ANSI_GREEN) + str + ANSI_RESET;
+    return color(str, ANSI_GREEN);
   };
 
   auto cyan = [&](const char* str) {
-    return std::string(ANSI_CYAN) + str + ANSI_RESET;
+    return color(str, ANSI_CYAN);
   };
 
   if (std::holds_alternative<Insert>(delta)) {
@@ -440,6 +456,9 @@ int main(int argc, char** argv)
          {"include-primary-keys", "Show differences between primary keys"},
          {"only-updates", "Show only UPDATES, not INSERTS or DELETES"},
          {"no-updates", "Don't show UPDATES, just INSERTS and DELETES"},
+         {"align", "Alignment of columns (left, right, or none)",
+          cxxopts::value<std::string>()->default_value("right")},
+         {"no-color", "Disable color"},
          {"exclude-cols", "Columns to exclude",
           cxxopts::value<std::vector<std::string>>()->default_value("")},
          {"db1", "First DB file", cxxopts::value<std::string>()},
@@ -458,9 +477,18 @@ int main(int argc, char** argv)
   settings::pedantic = result["pedantic"].as<bool>();
   settings::only_updates = result["only-updates"].as<bool>();
   settings::no_updates = result["no-updates"].as<bool>();
+  settings::align = result["align"].as<std::string>();
+  settings::no_color = result["no-color"].as<bool>();
 
   if (settings::only_updates and settings::no_updates) {
     std::cerr << "--only-updates and --no-updates are mutually exclusive" << std::endl;
+    return 1;
+  }
+
+  if (settings::align != "left" &&
+      settings::align != "right" &&
+      settings::align != "none") {
+    std::cerr << "--align must be left, right, or none" << std::endl;
     return 1;
   }
 
