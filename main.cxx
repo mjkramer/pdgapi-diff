@@ -6,6 +6,7 @@
 #include <range/v3/view/intersperse.hpp>
 #include <range/v3/view/iota.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <format>
@@ -97,10 +98,22 @@ std::ostream& operator<<(std::ostream& os, const SqlRow& row);
 
 struct SqlRow : std::vector<SqlVal> {
   Ident ident;
-  const std::vector<std::string>& col_names;
+
+  // HACK. Should be const ref, but would need to customize move ctor.
+  // (The move ctor is called during std::vector::erase)
+  std::vector<std::string> col_names;
 
   SqlRow(const std::vector<std::string>& col_names) :
     col_names(col_names) {}
+
+  // NOTE: SqlRow inherits operator== from vector so the ident is not compared
+  // unless we override the operator. (But do we need an equality operator?)
+  bool operator==(const SqlRow& other) const
+  {
+    return ident == other.ident &&
+      *static_cast<const std::vector<SqlVal>*>(this)
+      == *static_cast<const std::vector<SqlVal>*>(&other);
+  }
 
   size_t distance(const SqlRow& other) const
   {
@@ -369,14 +382,7 @@ std::optional<SqlRow> find_nearest(const SqlRow& needle, const SqlMap& haystack)
 std::vector<Delta> compare(const SqlMap& map1, const SqlMap& map2)
 {
   std::vector<Delta> ret;
-  // std::set<SqlRow> rows2_new(rows2.begin(), rows2.end());      // !
-  std::set<SqlRow> rows2_new;
-  for (const auto& [ident2, rows2] : map2) {
-    for (const auto& row : rows2) {
-      rows2_new.insert(row);
-    }
-  }
-
+  SqlMap map2_inserted = map2;
   for (const auto& [ident, rows1] : map1) {
     for (const auto& row : rows1) {
       std::optional<SqlRow> nearest = find_nearest(row, map2);
@@ -395,7 +401,9 @@ std::vector<Delta> compare(const SqlMap& map1, const SqlMap& map2)
             // throw std::format("Asymmetric match!");
           }
         }
-        rows2_new.erase(nearest.value());
+        auto& v = map2_inserted[ident];
+        const auto it = std::find(v.begin(), v.end(), nearest.value());
+        if (it != v.end()) v.erase(it);
         if (nearest.value() != row) {
           ret.push_back(Update(row, nearest.value()));
         }
@@ -403,8 +411,10 @@ std::vector<Delta> compare(const SqlMap& map1, const SqlMap& map2)
     }
   }
 
-  for (const auto& row : rows2_new) {
-    ret.push_back(Insert(row));
+  for (const auto& [ident, rows] : map2_inserted) {
+    for (const auto& row : rows) {
+      ret.push_back(Insert(row));
+    }
   }
 
   return ret;
