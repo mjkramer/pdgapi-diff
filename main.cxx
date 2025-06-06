@@ -446,12 +446,25 @@ const char* get_ident_col(const char* table)
   if (t == "pdgid" ||
       t == "pdgparticle" ||
       t == "pdgdata" ||
-      t == "pdgdecay")
+      t == "pdgdecay" ||
+      t == "pdgmeasurement" ||
+      t == "pdgtext" ||
+      t == "pdgfootnote")
     return "pdgid";
 
   if (t == "pdgitem" ||
       t == "pdgitem_map")
     return "name";
+
+  if (t == "pdgmeasurement_footnote" ||
+      t == "pdgmeasurement_values")
+    return "pdgmeasurement_id";
+
+  if (t == "pdgreference")
+    return "document_id";
+
+  if (t == "pdgid_map")
+    return "source";
 
   throw;
 }
