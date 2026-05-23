@@ -30,10 +30,17 @@ struct Delete {Row row;};
 struct Update {Row row, new_row;};
 using Delta = std::variant<Insert, Delete, Update>;
 
-struct Ident : std::vector<Val> {
+class Ident {
+public:
     Ident(const std::string&);
-    long foreign_key(size_t idx);
     std::string str();
+    long id_at(size_t idx);
+
+    const std::string& operator[](size_t idx) const;
+    std::string& operator[](size_t idx);
+
+private:
+    std::vector<std::string> m_keys;
 };
 
 } // namespace sql
