@@ -5,9 +5,8 @@
 using namespace std;
 using namespace sql;
 
-std::string Ident::str()
+std::ostream& operator<<(std::ostream& os, const Val& val)
 {
-    ostringstream os;
     auto write = [&](auto&& v) {
         using T = decay_t<decltype(v)>;
         if constexpr (is_same_v<T, string>)
@@ -17,5 +16,5 @@ std::string Ident::str()
         else
             os << v;
     };
-    return os.str();
+    return os;
 }
