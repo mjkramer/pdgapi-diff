@@ -1,9 +1,11 @@
-#include <algorithm>
 #include <iomanip>
 
-#include "SqlData.hh"
+#include "sql.hh"
 
-std::string SqlVal::str() const
+using namespace std;
+using namespace sql;
+
+std::string Val::str() const
 {
     std::ostringstream os;
     auto write = [&](auto&& v) {

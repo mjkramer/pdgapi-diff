@@ -62,18 +62,18 @@ void DB::patch_all_refs()
 
 sql::IdMap& DB::get_id_map(const char* table)
 {
-    const auto it = std::ranges::find(id_maps, table);
-    if (it != id_maps.end())
-        return *it;
+    if (m_idMaps.count(table))
+        return m_idMaps[table];
 
-    id_maps[table] = {};
-    const auto& id_map = id_maps[table];
+    m_idMaps[table] = {};
+    auto& id_map = m_idMaps[table];
 
-    const auto& cols = col_map[table];
+    const auto& cols = m_colMap[table];
     const int id_idx = std::ranges::find(cols, "id") - cols.begin();
 
-    for (const auto& [ident_str, row] : row_map[table]) {
-        id_map[ident_str] = std::get<long>(row[id_idx]);
+    for (const auto& [ident_str, row] : m_rowMap[table]) {
+        const long id = std::get<long>(row[id_idx]);
+        id_map[id] = ident_str;
     }
 
     return id_map;
@@ -84,31 +84,32 @@ void DB::patch_ident_refs(const char* src_table, const char* column,
 {
     patch_refs(src_table, column, dest_table);
 
-    const auto& ident_cols = IDENT_COLS[src_table];
+    const auto& ident_cols = IDENT_COLS.at(src_table);
     const int ident_idx = std::ranges::find(ident_cols, column) - ident_cols.begin();
 
     const auto& id_map = get_id_map(dest_table);
 
-    std::unordered_map<tblname_t, SqlRows> new_row_map;
+    Rows new_rows;
 
-    for (auto& [ident_str, row] : row_map[src_table]) {
+    for (auto& [ident_str, row] : m_rowMap[src_table]) {
         Ident ident{ident_str};
-        const std::string dest_ident = id_map[ident.int_at(ident_idx)];
-        ident.replace(ident_idx, dest_ident);
-        new_row_map[ident.str()] = std::move(row);
+        const std::string dest_ident = id_map.at(ident.get_int(ident_idx));
+        ident.set(ident_idx, dest_ident);
+        new_rows[ident.str()] = std::move(row);
     }
 
-    row_map[src_table] = std::move(new_row_map);
+    m_rowMap[src_table] = std::move(new_rows);
 }
 
 void DB::patch_refs(const char* src_table, const char* column, const char* dest_table)
 {
-    const auto& cols = col_map[src_table];
+    const auto& cols = m_colMap[src_table];
     const int idx = std::ranges::find(cols, column) - cols.begin();
 
     const auto& id_map = get_id_map(dest_table);
 
-    for (auto& [ident_str, row] : row_map[src_table]) {
-        row[idx] = id_map[row[idx]];
+    for (auto& [ident_str, row] : m_rowMap[src_table]) {
+        const long id = std::get<long>(row[idx]);
+        row[idx] = Val{id_map.at(id)};
     }
 }

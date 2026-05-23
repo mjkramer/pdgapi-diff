@@ -7,6 +7,7 @@ find_package(cxxopts REQUIRED)
 find_package(range-v3 REQUIRED)
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 file(GLOB SOURCES CONFIGURE_DEPENDS "*.cc")
 add_executable(pdgapi-diff main.cxx ${SOURCES})

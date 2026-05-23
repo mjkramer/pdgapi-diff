@@ -26,4 +26,15 @@ using ColMap = std::unordered_map<tblname_t, std::vector<colname_t>>;
 using IdMap = std::map<primkey_t, ident_t>;
 using IdMapMap = std::unordered_map<tblname_t, IdMap>;
 
+class Ident {
+public:
+    Ident(std::string rendering);
+    // Ident(std::vector<Val> values);
+    // std::string render();
+
+    int get_int(size_t idx) const;
+    void set(size_t idx, const std::string& val);
+    std::string str() const;
+};
+
 } // namespace sql
