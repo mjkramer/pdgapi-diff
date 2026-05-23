@@ -93,8 +93,8 @@ void DB::patch_ident_refs(const char* src_table, const char* column,
 
     for (auto& [ident_str, row] : m_rowMap[src_table]) {
         Ident ident{ident_str};
-        const std::string dest_ident = id_map.at(ident.get_int(ident_idx));
-        ident.set(ident_idx, dest_ident);
+        const std::string dest_ident = id_map.at(ident.foreign_key(ident_idx));
+        ident[ident_idx] = dest_ident;
         new_rows[ident.str()] = std::move(row);
     }
 
@@ -110,6 +110,6 @@ void DB::patch_refs(const char* src_table, const char* column, const char* dest_
 
     for (auto& [ident_str, row] : m_rowMap[src_table]) {
         const long id = std::get<long>(row[idx]);
-        row[idx] = Val{id_map.at(id)};
+        row[idx] = id_map.at(id);
     }
 }

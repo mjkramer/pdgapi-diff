@@ -12,11 +12,10 @@ using tblname_t = std::string;
 using colname_t = std::string;
 using ident_t = std::string;
 using primkey_t = long;
+using null_t = void*;
 
-// void* represents a NULL
-struct Val : std::variant<void*, long, double, std::string> {
-    std::string str() const;
-};
+using Val = std::variant<null_t, long, double, std::string>;
+std::ostream& operator<<(std::ostream&, Val);
 
 using Row = std::vector<Val>;
 using Rows = std::unordered_map<ident_t, Row>;
@@ -26,15 +25,15 @@ using ColMap = std::unordered_map<tblname_t, std::vector<colname_t>>;
 using IdMap = std::map<primkey_t, ident_t>;
 using IdMapMap = std::unordered_map<tblname_t, IdMap>;
 
-class Ident {
-public:
-    Ident(std::string rendering);
-    // Ident(std::vector<Val> values);
-    // std::string render();
+struct Insert {Row row;};
+struct Delete {Row row;};
+struct Update {Row row, new_row;};
+using Delta = std::variant<Insert, Delete, Update>;
 
-    int get_int(size_t idx) const;
-    void set(size_t idx, const std::string& val);
-    std::string str() const;
+struct Ident : std::vector<Val> {
+    Ident(const std::string&);
+    long foreign_key(size_t idx);
+    std::string str();
 };
 
 } // namespace sql

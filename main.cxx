@@ -1,21 +1,26 @@
-std::vector<Delta> compare(const DB& db1, const DB& db2, const char* table)
+#include "DB.hh"
+#include "sql.hh"
+
+using namespace std;
+using namespace sql;
+
+vector<Delta> compare(const DB& db1, const DB& db2, const char* table)
 {
     std::vector<Delta> ret;
 
-    const SqlRows& rows1 = db1.get_rows(table);
-    const SqlRows& rows2 = db2.get_rows(table);
-    SqlRows rows2_new{rows2};
+    const Rows& rows1 = db1.get_rows(table);
+    const Rows& rows2 = db2.get_rows(table);
+    Rows rows2_new{rows2};
 
     for (const auto& [ident, row1] : rows1) {
-        std::optional<SqlRow> row2_opt = rows2.find(ident);
-        if (not row2_opt.has_value()) {
+        if (not rows2.count(ident)) {
             ret.push_back(Delete(row1));
         } else {
-            const auto& row2 = row2_opt.value();
+            const auto& row2 = rows2.at(ident);
             if (row1 != row2) {
                 ret.push_back(Update(row1, row2));
             }
-            rows2_new.remove(ident);
+            rows2_new.erase(ident);
         }
     }
 
