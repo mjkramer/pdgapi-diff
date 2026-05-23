@@ -8,7 +8,8 @@ find_package(range-v3 REQUIRED)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(pdgapi-diff main.cxx)
+file(GLOB SOURCES CONFIGURE_DEPENDS "*.cc")
+add_executable(pdgapi-diff main.cxx ${SOURCES})
 
 target_link_libraries(pdgapi-diff
   PUBLIC "-static"

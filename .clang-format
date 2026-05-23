@@ -1,7 +1,11 @@
 ---
 Language:        Cpp
 BasedOnStyle:  LLVM
-AccessModifierOffset: 0
+ColumnLimit: 88
+AccessModifierOffset: -4
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
 #AlignConsecutiveAssignments: true
 #AlwaysBreakAfterReturnType: TopLevel
 BreakBeforeBraces: Custom
@@ -17,5 +21,5 @@ BraceWrapping:
   AfterFunction: true
 ConstructorInitializerIndentWidth: 2
 ContinuationIndentWidth: 2
-PenaltyReturnTypeOnItsOwnLine: 200
+# PenaltyReturnTypeOnItsOwnLine: 200
 PointerAlignment: Left
