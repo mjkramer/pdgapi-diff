@@ -233,7 +233,7 @@ std::ostream& operator<<(std::ostream& os, const Delta& delta)
   return os;
 }
 
-const char* get_ident_col(const char* table);
+std::vector<std::string> get_ident_cols(const char* table);
 
 struct DB {
   // The index is currently just used to avoid printing the same thing multiple
@@ -260,8 +260,7 @@ struct DB {
 
     SqlMap ret;
 
-    // We start at i = 1 to exclude the "ident" column
-    for (size_t i = 1; i < ncol; ++i) {
+    for (size_t i = 0; i < ncol; ++i) {
       ret.col_names.push_back(sqlite3_column_name(stmt, i));
     }
 
@@ -439,32 +438,37 @@ void run(const char* db1_path, const char* db2_path, const char* table)
   }
 }
 
-const char* get_ident_col(const char* table)
+std::vector<std::string> get_ident_cols(const char* table)
 {
   std::string_view t(table);
 
-  if (t == "pdgid" ||
-      t == "pdgparticle" ||
-      t == "pdgdata" ||
-      t == "pdgdecay" ||
-      t == "pdgmeasurement" ||
-      t == "pdgtext" ||
-      t == "pdgfootnote")
-    return "pdgid";
-
-  if (t == "pdgitem" ||
-      t == "pdgitem_map")
-    return "name";
-
-  if (t == "pdgmeasurement_footnote" ||
-      t == "pdgmeasurement_values")
-    return "pdgmeasurement_id";
-
-  if (t == "pdgreference")
-    return "document_id";
-
-  if (t == "pdgid_map")
-    return "source";
+  if (t == "pdgdata") {
+    return {"pdgid", "value_type", "sort"};
+  } else if (t == "pdgdecay") {
+    return {"pdgid"};
+  } else if (t == "pdgfootnote") {
+    return {"pdgid", "footnote_index"};
+  } else if (t == "pdgid_map") {
+    return {"source", "target"};
+  } else if (t == "pdgid") {
+    return {"pdgid"};
+  } else if (t == "pdgitem_map") {
+    return {"name", "target_id"};
+  } else if (t == "pdgitem") {
+    return {"name"};
+  } else if (t == "pdgmeasurement_footnote") {
+    return {"pdgmeasurement_id", "pdgfootnote_id"};
+  } else if (t == "pdgmeasurement") {
+    return {"pdgid", "pdgreference_id", "sort"};
+  } else if (t == "pdgmeasurement_values") {
+    return {"pdgmeasurement_id", "column_name", "sort"};
+  } else if (t == "pdgparticle") {
+    return {"pdgid", "name"};
+  } else if (t == "pdgreference") {
+    return {"document_id"};
+  } else if (t == "pdgtext") {
+    return {"pdgid"};
+  } 
 
   throw;
 }
