@@ -1,17 +1,18 @@
 #include "DB.hh"
+#include "sql.hh"
 
 using namespace sql;
 using namespace std;
 
-const std::vector<std::string> DB::TABLES{"pdgdata",        "pdgdecay",
-                                          "pdgfootnote",    "pdgid_map",
-                                          "pdgid",          "pdgitem_map",
-                                          "pdgitem",        "pdgmeasurement_footnote",
-                                          "pdgmeasurement", "pdgmeasurement_values",
-                                          "pdgparticle",    "pdgreference",
-                                          "pdgtext"};
+const vector<string> DB::TABLES{"pdgdata",        "pdgdecay",
+                                "pdgfootnote",    "pdgid_map",
+                                "pdgid",          "pdgitem_map",
+                                "pdgitem",        "pdgmeasurement_footnote",
+                                "pdgmeasurement", "pdgmeasurement_values",
+                                "pdgparticle",    "pdgreference",
+                                "pdgtext"};
 
-const std::map<std::string, std::vector<std::string>> DB::IDENT_COLS{
+const map<string, vector<string>> DB::IDENT_COLS{
   {"pdgdata", {"pdgid", "value_type", "sort"}},
   {"pdgdecay", {"pdgid"}},
   {"pdgfootnote", {"pdgid", "footnote_index"}},
@@ -26,16 +27,41 @@ const std::map<std::string, std::vector<std::string>> DB::IDENT_COLS{
   {"pdgreference", {"document_id"}},
   {"pdgtext", {"pdgid"}}};
 
-DB::DB(const string& path)
+DB::DB(const string& path) : m_db(path)
 {
-    sqlite3_open_v2(path.data(), &m_db, SQLITE_OPEN_READONLY, nullptr);
-
     for (const auto& table : TABLES) {
+        m_colMap[table] = m_db.col_names(table); // cache column names
         read_table(table);
     }
 
     patch_all_refs();
 }
+
+void DB::read_table(const string& table)
+{
+    auto& row_map = m_rowMap[table] = {};
+
+    vector<size_t> ident_idcs;
+    for (const auto& ident_cname : IDENT_COLS.at(table)) {
+        const size_t idx = ranges::find(m_colMap[table], ident_cname) - m_colMap[table].begin();
+        ident_idcs.push_back(idx);
+    }
+
+    auto rows = m_db.all_rows(table);
+
+    for (const auto& row : rows) {
+        vector<string> ident;
+        for (size_t idx : ident_idcs) {
+            ident.push_back(to_str(row[idx]));
+        }
+        row_map[Ident{ident}.str()] = row;
+    }
+}
+
+const Rows& DB::get_rows(const string& table) const
+{
+    return m_rowMap.at(table);
+} 
 
 void DB::patch_all_refs()
 {
@@ -56,9 +82,50 @@ void DB::patch_all_refs()
     patch_refs("pdgparticle", "pdgid_id", "pdgid");
     patch_refs("pdgparticle", "pdgitem_id", "pdgitem");
     patch_refs("pdgtext", "pdgid_id", "pdgid");
+
+    for (const auto& table : TABLES) {
+        patch_id(table);
+    }
 }
 
-sql::IdMap& DB::get_id_map(const string& table)
+void DB::patch_ident_refs(const string& src_table, const string& column,
+                          const string& dest_table)
+{
+    patch_refs(src_table, column, dest_table);
+
+    const auto& ident_cols = IDENT_COLS.at(src_table);
+    const int ident_idx = ranges::find(ident_cols, column) - ident_cols.begin();
+
+    const auto& id_map = get_id_map(dest_table);
+
+    Rows new_rows;
+
+    for (auto& [ident_str, row] : m_rowMap[src_table]) {
+        Ident ident{ident_str};
+        const string dest_ident = id_map.at(ident.id_at(ident_idx));
+        // TODO: Wrap in parens
+        ident[ident_idx] = dest_ident;
+        new_rows[ident.str()] = std::move(row);
+    }
+
+    m_rowMap[src_table] = std::move(new_rows);
+}
+
+void DB::patch_refs(const string& src_table, const string& column,
+                    const string& dest_table)
+{
+    const auto& cols = m_colMap[src_table];
+    const int idx = ranges::find(cols, column) - cols.begin();
+
+    const auto& id_map = get_id_map(dest_table);
+
+    for (auto& [ident_str, row] : m_rowMap[src_table]) {
+        const long id = get<long>(row[idx]);
+        row[idx] = id_map.at(id);
+    }
+}
+
+IdMap& DB::get_id_map(const string& table)
 {
     if (m_idMaps.count(table))
         return m_idMaps[table];
@@ -77,39 +144,12 @@ sql::IdMap& DB::get_id_map(const string& table)
     return id_map;
 }
 
-void DB::patch_ident_refs(const string& src_table, const string& column,
-                          const string& dest_table)
+void DB::patch_id(const string& table)
 {
-    patch_refs(src_table, column, dest_table);
+    const auto& cols = m_colMap[table];
+    const int idx = ranges::find(cols, "id") - cols.begin();
 
-    const auto& ident_cols = IDENT_COLS.at(src_table);
-    const int ident_idx = std::ranges::find(ident_cols, column) - ident_cols.begin();
-
-    const auto& id_map = get_id_map(dest_table);
-
-    Rows new_rows;
-
-    for (auto& [ident_str, row] : m_rowMap[src_table]) {
-        Ident ident{ident_str};
-        const std::string dest_ident = id_map.at(ident.id_at(ident_idx));
-        // TODO: Wrap in parens
-        ident[ident_idx] = dest_ident;
-        new_rows[ident.str()] = std::move(row);
-    }
-
-    m_rowMap[src_table] = std::move(new_rows);
-}
-
-void DB::patch_refs(const string& src_table, const string& column,
-                    const string& dest_table)
-{
-    const auto& cols = m_colMap[src_table];
-    const int idx = ranges::find(cols, column) - cols.begin();
-
-    const auto& id_map = get_id_map(dest_table);
-
-    for (auto& [ident_str, row] : m_rowMap[src_table]) {
-        const long id = std::get<long>(row[idx]);
-        row[idx] = id_map.at(id);
+    for (auto& [ident_str, row] : m_rowMap[table]) {
+        row[idx] = ident_str;
     }
 }

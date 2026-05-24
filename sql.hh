@@ -14,9 +14,10 @@ using primkey_t = long;
 using null_t = void*;
 
 using Val = std::variant<null_t, long, double, std::string>;
-std::ostream& operator<<(std::ostream&, Val);
+std::string to_str(const Val&);
 
 using Row = std::vector<Val>;
+using RowStream = std::vector<sql::Row>;
 using Rows = std::map<ident_t, Row>;
 
 using RowMap = std::map<tblname_t, Rows>;
@@ -37,9 +38,12 @@ using Delta = std::variant<Insert, Delete, Update>;
 
 class Ident {
 public:
+    Ident() = default;
+    Ident(const std::vector<std::string>&);
     Ident(const std::string&);
+
     std::string str();
-    long id_at(size_t idx);
+    primkey_t id_at(size_t idx);
 
     const std::string& operator[](size_t idx) const;
     std::string& operator[](size_t idx);

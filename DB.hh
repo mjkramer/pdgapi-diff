@@ -2,6 +2,7 @@
 
 #include <sqlite3.h>
 
+#include "SqliteConn.hh"
 #include "sql.hh"
 
 class DB {
@@ -16,15 +17,15 @@ private:
                           const std::string& dest_table);
     void patch_refs(const std::string& src_table, const std::string& column,
                     const std::string& dest_table);
+    void patch_id(const std::string& table);
     sql::IdMap& get_id_map(const std::string& table);
 
-    sqlite3* m_db;
+    SqliteConn m_db;
 
     sql::RowMap m_rowMap;
     sql::ColMap m_colMap;
     sql::IdMapMap m_idMaps;
 
     static const std::vector<std::string> TABLES;
-    // see NOTES.md re std::less<>
     static const std::map<std::string, std::vector<std::string>> IDENT_COLS;
 };
