@@ -33,7 +33,7 @@ const map<string, vector<string>> DB::IDENT_COLS{
   {"pdgtext", {"pdgid"}}};
 
 const map<string, set<string>> DB::EXCLUDE_COLS{
-    {"pdgid", {"parent_id", "sort"}}
+    {"pdgid", {"parent_id", "mode_number", "sort"}}
 };
 
 DB::DB(const string& path) : m_db(path)
