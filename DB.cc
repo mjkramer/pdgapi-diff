@@ -43,7 +43,8 @@ void DB::read_table(const string& table)
 
     vector<size_t> ident_idcs;
     for (const auto& ident_cname : IDENT_COLS.at(table)) {
-        const size_t idx = ranges::find(m_colMap[table], ident_cname) - m_colMap[table].begin();
+        const size_t idx =
+          ranges::find(m_colMap[table], ident_cname) - m_colMap[table].begin();
         ident_idcs.push_back(idx);
     }
 
@@ -58,10 +59,7 @@ void DB::read_table(const string& table)
     }
 }
 
-const Rows& DB::get_rows(const string& table) const
-{
-    return m_rowMap.at(table);
-} 
+const Rows& DB::get_rows(const string& table) const { return m_rowMap.at(table); }
 
 void DB::patch_all_refs()
 {

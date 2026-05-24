@@ -24,9 +24,7 @@ string to_str(const Val& val)
     return os.str();
 }
 
-Ident::Ident(const vector<string>& v) : m_keys(v)
-{
-}
+Ident::Ident(const vector<string>& v) : m_keys(v) {}
 
 Ident::Ident(const string& s)
 {
@@ -47,4 +45,4 @@ const string& Ident::operator[](size_t idx) const { return m_keys[idx]; }
 
 string& Ident::operator[](size_t idx) { return m_keys[idx]; }
 
-}
+} // namespace sql
