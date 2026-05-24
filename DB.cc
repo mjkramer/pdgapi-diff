@@ -1,6 +1,10 @@
 #include "DB.hh"
 #include "sql.hh"
 
+#include <format>
+#include <iostream>
+#include <variant>
+
 using namespace sql;
 using namespace std;
 
@@ -118,8 +122,21 @@ void DB::patch_refs(const string& src_table, const string& column,
     const auto& id_map = get_id_map(dest_table);
 
     for (auto& [ident_str, row] : m_rowMap[src_table]) {
-        const long id = get<long>(row[idx]);
-        row[idx] = id_map.at(id);
+        if (std::holds_alternative<long>(row[idx])) {
+            const auto id = get<long>(row[idx]);
+            if (not id_map.contains(id)) {
+                cerr << format("WARNING1: {} {} {} {}", src_table, column, dest_table,
+                               id)
+                     << endl;
+                row[idx] = "BORK";
+            } else
+                row[idx] = id_map.at(id);
+        } else if (std::holds_alternative<null_t>(row[idx])) {
+            row[idx] = "NULL";
+        } else {
+            cerr << format("WARNING2: {} {} {} {}", src_table, column, dest_table, idx)
+                 << endl;
+        }
     }
 }
 
