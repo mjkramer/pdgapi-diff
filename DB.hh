@@ -10,6 +10,8 @@ public:
     DB(const std::string& path);
     const sql::Rows& get_rows(const std::string& table) const;
 
+    static const std::vector<std::string> TABLES;
+
 private:
     void patch_all_refs();
     void read_table(const std::string& table);
@@ -26,6 +28,5 @@ private:
     sql::ColMap m_colMap;
     sql::IdMapMap m_idMaps;
 
-    static const std::vector<std::string> TABLES;
     static const std::map<std::string, std::vector<std::string>> IDENT_COLS;
 };
