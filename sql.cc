@@ -33,13 +33,13 @@ Ident::Ident(const string& s)
     m_keys = s | views::split(delim) | views::transform(to_str) | ranges::to<vector>();
 }
 
-string Ident::str()
+string Ident::str() const
 {
     string_view delim("::");
     return m_keys | views::join_with(delim) | ranges::to<string>();
 }
 
-long Ident::id_at(size_t idx) { return stoul(m_keys[idx]); }
+long Ident::id_at(size_t idx) const { return stoul(m_keys[idx]); }
 
 const string& Ident::operator[](size_t idx) const { return m_keys[idx]; }
 

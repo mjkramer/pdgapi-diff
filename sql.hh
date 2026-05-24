@@ -42,8 +42,9 @@ public:
     Ident(const std::vector<std::string>&);
     Ident(const std::string&);
 
-    std::string str();
-    primkey_t id_at(size_t idx);
+    std::string str() const;
+    primkey_t id_at(size_t idx) const;
+    std::vector<std::string>& keys() { return m_keys; }
 
     const std::string& operator[](size_t idx) const;
     std::string& operator[](size_t idx);

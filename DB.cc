@@ -55,11 +55,11 @@ void DB::read_table(const string& table)
     auto rows = m_db.all_rows(table);
 
     for (const auto& row : rows) {
-        vector<string> ident;
+        Ident ident;
         for (size_t idx : ident_idcs) {
-            ident.push_back(to_str(row[idx]));
+            ident.keys().push_back(to_str(row[idx]));
         }
-        row_map[Ident{ident}.str()] = row;
+        row_map[ident.str()] = row;
     }
 }
 
