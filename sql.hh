@@ -2,7 +2,6 @@
 
 #include <map>
 #include <string>
-#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -17,13 +16,18 @@ using null_t = void*;
 using Val = std::variant<null_t, long, double, std::string>;
 std::ostream& operator<<(std::ostream&, Val);
 
-using Row = std::vector<Val>;
-using Rows = std::unordered_map<ident_t, Row>;
+// The less<> allows a map<string, ...> to accept string_views
+// for lookups (see NOTES.md)
+template <typename K, typename V>
+using map = std::map<K, V, std::less<>>;
 
-using RowMap = std::unordered_map<tblname_t, Rows>;
-using ColMap = std::unordered_map<tblname_t, std::vector<colname_t>>;
-using IdMap = std::map<primkey_t, ident_t>;
-using IdMapMap = std::unordered_map<tblname_t, IdMap>;
+using Row = std::vector<Val>;
+using Rows = map<ident_t, Row>;
+
+using RowMap = map<tblname_t, Rows>;
+using ColMap = map<tblname_t, std::vector<colname_t>>;
+using IdMap = map<primkey_t, ident_t>;
+using IdMapMap = map<tblname_t, IdMap>;
 
 struct Insert {Row row;};
 struct Delete {Row row;};

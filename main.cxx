@@ -1,12 +1,17 @@
 #include "DB.hh"
 #include "sql.hh"
 
+#include <cxxopts.hpp>
+
+#include <iostream>
+#include <filesystem>
+
 using namespace std;
 using namespace sql;
 
 vector<Delta> compare(const DB& db1, const DB& db2, const char* table)
 {
-    std::vector<Delta> ret;
+    vector<Delta> ret;
 
     const Rows& rows1 = db1.get_rows(table);
     const Rows& rows2 = db2.get_rows(table);
@@ -29,4 +34,32 @@ vector<Delta> compare(const DB& db1, const DB& db2, const char* table)
     }
 
     return ret;
+}
+
+void run(string_view db1_path, string_view db2_path)
+{
+    DB db1( )
+}
+
+int main(int argc, char** argv)
+{
+    const string progname = filesystem::path(argv[0]).filename().string();
+    cxxopts::Options options(progname.c_str(), "PDG API diff tool");
+    options.add_options(
+        "", {{"h,help", "Print usage"},
+            {"db1", "First DB file", cxxopts::value<std::string>()},
+            {"db2", "Second DB file", cxxopts::value<std::string>()}});
+    options.parse_positional({"db1", "db2"});
+    options.positional_help("db1 db2");
+    cxxopts::ParseResult result = options.parse(argc, argv);
+    
+    try {
+        const auto db1 = result["db1"].as<std::string>();
+        const auto db2 = result["db2"].as<std::string>();
+
+        run(db1, db2);
+    } catch (cxxopts::exceptions::option_has_no_value) {
+        cout << options.help() << std::endl;
+        return 1;
+    }
 }
