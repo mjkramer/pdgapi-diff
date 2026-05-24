@@ -14,7 +14,8 @@ private:
     void read_table(const std::string& table);
     void patch_ident_refs(const std::string& src_table, const std::string& column,
                           const std::string& dest_table);
-    void patch_refs(const std::string& src_table, const std::string& column, const std::string& dest_table);
+    void patch_refs(const std::string& src_table, const std::string& column,
+                    const std::string& dest_table);
     sql::IdMap& get_id_map(const std::string& table);
 
     sqlite3* m_db;
@@ -27,4 +28,3 @@ private:
     // see NOTES.md re std::less<>
     static const std::map<std::string, std::vector<std::string>> IDENT_COLS;
 };
-

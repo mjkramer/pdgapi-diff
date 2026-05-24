@@ -3,7 +3,6 @@
 using namespace sql;
 using namespace std;
 
-
 const std::vector<std::string> DB::TABLES{"pdgdata",        "pdgdecay",
                                           "pdgfootnote",    "pdgid_map",
                                           "pdgid",          "pdgitem_map",
@@ -26,7 +25,6 @@ const std::map<std::string, std::vector<std::string>> DB::IDENT_COLS{
   {"pdgparticle", {"pdgid", "name"}},
   {"pdgreference", {"document_id"}},
   {"pdgtext", {"pdgid"}}};
-
 
 DB::DB(const string& path)
 {
@@ -102,7 +100,8 @@ void DB::patch_ident_refs(const string& src_table, const string& column,
     m_rowMap[src_table] = std::move(new_rows);
 }
 
-void DB::patch_refs(const string& src_table, const string& column, const string& dest_table)
+void DB::patch_refs(const string& src_table, const string& column,
+                    const string& dest_table)
 {
     const auto& cols = m_colMap[src_table];
     const int idx = ranges::find(cols, column) - cols.begin();

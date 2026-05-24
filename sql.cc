@@ -34,17 +34,8 @@ string Ident::str()
     return m_keys | views::join_with(delim) | ranges::to<string>();
 }
 
-long Ident::id_at(size_t idx)
-{
-    return stoul(m_keys[idx]);
-}
+long Ident::id_at(size_t idx) { return stoul(m_keys[idx]); }
 
-const string& Ident::operator[](size_t idx) const
-{
-    return m_keys[idx];
-}
+const string& Ident::operator[](size_t idx) const { return m_keys[idx]; }
 
-string& Ident::operator[](size_t idx)
-{
-    return m_keys[idx];
-}
+string& Ident::operator[](size_t idx) { return m_keys[idx]; }
