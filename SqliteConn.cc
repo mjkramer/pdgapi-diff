@@ -47,7 +47,7 @@ RowStream SqliteConn::all_rows(const string& table)
 
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         Row row;
-        for (size_t i = 1; i < ncol; ++i) {
+        for (size_t i = 0; i < ncol; ++i) {
             switch (sqlite3_column_type(stmt, i)) {
             case SQLITE_NULL:
                 row.emplace_back(nullptr);
