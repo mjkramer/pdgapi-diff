@@ -128,15 +128,15 @@ template <> struct std::formatter<sql::Delta> : std::formatter<std::string> {
     auto format(const sql::Delta& delta, std::format_context& ctx) const
     {
         auto c = util::cases{
-            [&](sql::Insert ins) {
+            [&](const sql::Insert& ins) {
                 const string row_str = format_row(ins.row);
                 return format_to(ctx.out(), "{}INSERT:{} {}", ANSI_GREEN, ANSI_RESET, row_str);
             },
-            [&](sql::Delete del) {
+            [&](const sql::Delete& del) {
                 const string row_str = format_row(del.row);
                 return format_to(ctx.out(), "{}DELETE:{} {}", ANSI_RED, ANSI_RESET, row_str);
             },
-            [&](sql::Update upd) {
+            [&](const sql::Update& upd) {
                 const string row1_str = format_row(upd.row, &upd.new_row, &ANSI_RED);
                 const string row2_str = format_row(upd.new_row, &upd.row, &ANSI_GREEN);
                 return format_to(ctx.out(), "{}UPDATE-:{} {}\n{}UPDATE+:{} {}",
