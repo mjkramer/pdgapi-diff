@@ -9,6 +9,7 @@
 using namespace std;
 using namespace sql;
 
+
 vector<Delta> compare(const DB& db1, const DB& db2, const char* table)
 {
     vector<Delta> ret;
@@ -36,10 +37,14 @@ vector<Delta> compare(const DB& db1, const DB& db2, const char* table)
     return ret;
 }
 
-void run(string_view db1_path, string_view db2_path)
+
+void run(const string& db1_path, const string& db2_path)
 {
-    DB db1( )
+    DB db1(db1_path);
+    DB db2(db2_path);
+    compare(db1, db2, "pdgid");
 }
+
 
 int main(int argc, char** argv)
 {
@@ -62,4 +67,6 @@ int main(int argc, char** argv)
         cout << options.help() << std::endl;
         return 1;
     }
+
+    return 0;
 }
