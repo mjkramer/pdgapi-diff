@@ -1,5 +1,6 @@
 #pragma once
 
+#include <format>
 #include <map>
 #include <string>
 #include <variant>
@@ -14,14 +15,17 @@ using primkey_t = long;
 using null_t = void*;
 
 using Val = std::variant<null_t, long, double, std::string>;
-std::string to_str(const Val&);
+bool operator==(const Val&, const Val&);
 
 using Row = std::vector<Val>;
+
 using RowStream = std::vector<sql::Row>;
 using Rows = std::map<ident_t, Row>;
 
+using ColSet = std::vector<colname_t>;
+
 using RowMap = std::map<tblname_t, Rows>;
-using ColMap = std::map<tblname_t, std::vector<colname_t>>;
+using ColMap = std::map<tblname_t, ColSet>;
 using IdMap = std::map<primkey_t, ident_t>;
 using IdMapMap = std::map<tblname_t, IdMap>;
 
@@ -42,9 +46,9 @@ public:
     Ident(const std::vector<std::string>&);
     Ident(const std::string&);
 
-    std::string str() const;
     primkey_t id_at(size_t idx) const;
     std::vector<std::string>& keys() { return m_keys; }
+    const std::vector<std::string>& keys() const { return m_keys; }
 
     const std::string& operator[](size_t idx) const;
     std::string& operator[](size_t idx);

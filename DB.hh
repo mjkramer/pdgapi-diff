@@ -8,7 +8,7 @@
 class DB {
 public:
     DB(const std::string& path);
-    const sql::Rows& get_rows(const std::string& table) const;
+    const sql::Rows& rows(const std::string& table) const;
 
     static const std::vector<std::string> TABLES;
 

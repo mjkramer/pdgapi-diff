@@ -1,4 +1,5 @@
 #include "DB.hh"
+#include "output.hh"
 #include "sql.hh"
 
 #include <format>
@@ -57,13 +58,13 @@ void DB::read_table(const string& table)
     for (const auto& row : rows) {
         Ident ident;
         for (size_t idx : ident_idcs) {
-            ident.keys().push_back(to_str(row[idx]));
+            ident.keys().push_back(format("{}", row[idx]));
         }
-        row_map[ident.str()] = row;
+        row_map[format("{}", ident)] = row;
     }
 }
 
-const Rows& DB::get_rows(const string& table) const { return m_rowMap.at(table); }
+const Rows& DB::rows(const string& table) const { return m_rowMap.at(table); }
 
 void DB::patch_all_refs()
 {
@@ -105,9 +106,8 @@ void DB::patch_ident_refs(const string& src_table, const string& column,
     for (auto& [ident_str, row] : m_rowMap[src_table]) {
         Ident ident{ident_str};
         const string dest_ident = id_map.at(ident.id_at(ident_idx));
-        // TODO: Wrap in parens
-        ident[ident_idx] = dest_ident;
-        new_rows[ident.str()] = std::move(row);
+        ident[ident_idx] = format("({})", dest_ident);
+        new_rows[format("{}", ident)] = std::move(row);
     }
 
     m_rowMap[src_table] = std::move(new_rows);
