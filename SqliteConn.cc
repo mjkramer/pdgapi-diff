@@ -11,6 +11,11 @@ SqliteConn::SqliteConn(const std::string& path)
     sqlite3_open_v2(path.c_str(), &m_db, SQLITE_OPEN_READONLY, nullptr);
 }
 
+void SqliteConn::set_exclude_cols(const std::map<std::string, std::set<std::string>>& cols)
+{
+    m_excludeCols = cols;
+}
+
 vector<string> SqliteConn::col_names(const std::string& table)
 {
     std::vector<std::string> ret;
@@ -21,6 +26,8 @@ vector<string> SqliteConn::col_names(const std::string& table)
 
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         std::string name = (const char*)sqlite3_column_text(stmt, 1);
+        if (m_excludeCols.contains(table) and m_excludeCols.at(table).contains(name))
+            continue;
         ret.push_back(std::move(name));
     }
 

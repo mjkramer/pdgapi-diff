@@ -3,6 +3,7 @@
 
 #include <format>
 #include <iostream>
+#include <set>
 #include <variant>
 
 using namespace sql;
@@ -31,8 +32,14 @@ const map<string, vector<string>> DB::IDENT_COLS{
   {"pdgreference", {"document_id"}},
   {"pdgtext", {"pdgid"}}};
 
+const map<string, set<string>> DB::EXCLUDE_COLS{
+    {"pdgid", {"parent_id", "sort"}}
+};
+
 DB::DB(const string& path) : m_db(path)
 {
+    m_db.set_exclude_cols(DB::EXCLUDE_COLS);
+
     for (const auto& table : TABLES) {
         m_colMap[table] = m_db.col_names(table); // cache column names
         read_table(table);
@@ -77,7 +84,7 @@ void DB::patch_all_refs()
     patch_refs("pdgdata", "pdgid_id", "pdgid");
     patch_refs("pdgdecay", "pdgid_id", "pdgid");
     patch_refs("pdgdecay", "pdgitem_id", "pdgitem");
-    patch_refs("pdgid", "parent_id", "pdgid");
+    // patch_refs("pdgid", "parent_id", "pdgid");
     patch_refs("pdgid_map", "source_id", "pdgid");
     patch_refs("pdgid_map", "target_id", "pdgid");
     patch_refs("pdgitem_map", "pdgitem_id", "pdgitem");

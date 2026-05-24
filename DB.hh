@@ -1,9 +1,9 @@
 #pragma once
 
-#include <sqlite3.h>
-
 #include "SqliteConn.hh"
 #include "sql.hh"
+
+#include <set>
 
 class DB {
 public:
@@ -30,4 +30,5 @@ private:
     sql::IdMapMap m_idMaps;
 
     static const std::map<std::string, std::vector<std::string>> IDENT_COLS;
+    static const std::map<std::string, std::set<std::string>> EXCLUDE_COLS;
 };

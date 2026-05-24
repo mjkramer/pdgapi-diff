@@ -12,7 +12,7 @@ string format_val(const Val& val, const Val* other,
                   const string* diff_hl_color)
 {
     if (not other)
-        return format("{}", val);
+        return format("{:q}", val);
 
     const auto s1 = format("{:q}", val);
     const auto s2 = format("{:q}", *other);
