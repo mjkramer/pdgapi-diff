@@ -5,7 +5,6 @@
 
 #include <filesystem>
 #include <iostream>
-#include <variant>
 
 using namespace std;
 using namespace sql;
@@ -37,37 +36,6 @@ vector<Delta> compare(const DB& db1, const DB& db2, const std::string& table)
     return ret;
 }
 
-void dump_row(const Row& row)
-{
-    bool at_start = true;
-    for (const auto& val : row) {
-        if (not at_start)
-            cout << ", ";
-        cout << to_str(val);
-        at_start = false;
-    }
-    cout << endl;
-}
-
-void dump_deltas(const vector<Delta>& deltas)
-{
-    for (const auto& delta : deltas) {
-        if (std::holds_alternative<Insert>(delta)) {
-            cout << "INSERT:" << endl;
-            dump_row(get<Insert>(delta).row);
-            cout << endl;
-        } else if (std::holds_alternative<Delete>(delta)) {
-            cout << "DELETE:" << endl;
-            dump_row(get<Delete>(delta).row);
-            cout << endl;
-        } else if (std::holds_alternative<Update>(delta)) {
-            cout << "UPDATE:" << endl;
-            dump_row(get<Update>(delta).row);
-            dump_row(get<Update>(delta).new_row);
-            cout << endl;
-        }
-    }
-}
 
 void run(const string& db1_path, const string& db2_path, const optional<string>& a_table)
 {
@@ -77,13 +45,14 @@ void run(const string& db1_path, const string& db2_path, const optional<string>&
     auto tables = a_table ? vector{*a_table} : DB::TABLES;
 
     for (const auto& table : tables) {
-        if (not a_table) cout << "### " << table << endl << endl;
-        dump_col_names(table);
-        
-    }
+        cout << format("### {}\n\n", table);
+        cout << format("{}\n\n", db1.cols(table));
 
-    const auto deltas = compare(db1, db2, table);
-    dump_deltas(deltas);
+        const auto deltas = compare(db1, db2, table);
+        for (const auto& delta : deltas) {
+            cout << format("{}\n\n", delta);
+        }
+    }
 }
 
 int main(int argc, char** argv)

@@ -1,5 +1,4 @@
 #include "DB.hh"
-#include "output.hh"
 #include "sql.hh"
 
 #include <format>
@@ -65,6 +64,7 @@ void DB::read_table(const string& table)
 }
 
 const Rows& DB::rows(const string& table) const { return m_rowMap.at(table); }
+const ColSet& DB::cols(const string& table) const { return m_colMap.at(table); }
 
 void DB::patch_all_refs()
 {

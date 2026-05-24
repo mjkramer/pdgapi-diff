@@ -58,3 +58,33 @@ private:
 };
 
 } // namespace sql
+
+template <> struct std::formatter<sql::Val> {
+    bool quote = false;
+    constexpr auto parse(std::format_parse_context& ctx);
+    auto format(const sql::Val&, std::format_context&) const;
+};
+
+constexpr auto std::formatter<sql::Val>::parse(std::format_parse_context& ctx)
+{
+    auto it = ctx.begin();
+    if (it != ctx.end() && *it == 'q') {
+        quote = true;
+        ++it;
+    }
+    if (it != ctx.end() && *it != '}')
+        throw std::format_error("invalid format spec for sql::Val");
+    return it;
+}
+
+template <> struct std::formatter<sql::Ident> : std::formatter<std::string> {
+    auto format(const sql::Ident&, std::format_context&) const;
+};
+
+template <> struct std::formatter<sql::ColSet> : std::formatter<std::string> {
+    auto format(const sql::ColSet&, std::format_context&) const;
+};
+
+template <> struct std::formatter<sql::Delta> : std::formatter<std::string> {
+    auto format(const sql::Delta&, std::format_context&) const;
+};
