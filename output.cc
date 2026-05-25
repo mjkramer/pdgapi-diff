@@ -1,4 +1,5 @@
 #include "sql.hh"
+#include "util.hh"
 
 #include <ranges>
 
@@ -72,7 +73,7 @@ std::formatter<Ident>::format(const Ident& ident, std::format_context& ctx) cons
 }
 
 std::format_context::iterator
-std::formatter<ColSet>::format(const ColSet& cols, std::format_context& ctx) const
+std::formatter<ColVec>::format(const ColVec& cols, std::format_context& ctx) const
 {
     auto s = joined(cols, ", ");
     return format_to(ctx.out(), "{}", s);

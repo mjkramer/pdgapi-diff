@@ -9,7 +9,7 @@ class DB {
 public:
     DB(const std::string& path);
     const sql::Rows& rows(const std::string& table) const;
-    const sql::ColSet& cols(const std::string& table) const;
+    const sql::ColVec& cols(const std::string& table) const;
 
     static const std::vector<std::string> TABLES;
 
@@ -30,6 +30,9 @@ private:
     sql::IdMapMap m_idMaps;
     sql::InvIdMapMap m_invIdMaps;
 
-    static const std::map<std::string, std::vector<std::string>> IDENT_COLS;
-    static const std::map<std::string, std::set<std::string>> EXCLUDE_COLS;
+    sql::IdentSetMap m_ambigIdents;
+
+    static const sql::ColMap IDENT_COLS;
+    static const sql::ColMap EXTRA_IDENT_COLS;
+    static const sql::ColSetMap EXCLUDE_COLS;
 };

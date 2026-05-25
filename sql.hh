@@ -1,10 +1,8 @@
 #pragma once
 
-#include "util.hh"
-
 #include <format>
 #include <map>
-#include <ranges>
+#include <set>
 #include <string>
 #include <variant>
 #include <vector>
@@ -26,14 +24,19 @@ bool operator==(const Row&, const Row&);
 using RowStream = std::vector<sql::Row>;
 using Rows = std::map<ident_t, Row>;
 
-using ColSet = std::vector<colname_t>;
+using ColVec = std::vector<colname_t>;
+using ColSet = std::set<colname_t>;
 
 using RowMap = std::map<tblname_t, Rows>;
-using ColMap = std::map<tblname_t, ColSet>;
+using ColMap = std::map<tblname_t, ColVec>;
+using ColSetMap = std::map<tblname_t, ColSet>;
 using IdMap = std::map<primkey_t, ident_t>;
 using IdMapMap = std::map<tblname_t, IdMap>;
 using InvIdMap = std::map<ident_t, primkey_t>;
 using InvIdMapMap = std::map<tblname_t, InvIdMap>;
+
+using IdentSet = std::set<ident_t>;
+using IdentSetMap = std::map<tblname_t, IdentSet>;
 
 struct Insert {
     Row row;
@@ -87,8 +90,8 @@ template <> struct std::formatter<sql::Ident> : std::formatter<std::string> {
                                          std::format_context& ctx) const;
 };
 
-template <> struct std::formatter<sql::ColSet> : std::formatter<std::string> {
-    std::format_context::iterator format(const sql::ColSet& cols,
+template <> struct std::formatter<sql::ColVec> : std::formatter<std::string> {
+    std::format_context::iterator format(const sql::ColVec& cols,
                                          std::format_context& ctx) const;
 };
 

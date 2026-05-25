@@ -1,5 +1,6 @@
 #include "DB.hh"
 #include "sql.hh"
+#include "util.hh"
 
 #include <format>
 #include <iostream>
@@ -18,7 +19,7 @@ const vector<string> DB::TABLES{"pdgdata",        "pdgdecay",
                                 "pdgtext"};
 
 const map<string, vector<string>> DB::IDENT_COLS{
-  {"pdgdata", {"pdgid", "value_type", "sort"}},
+  {"pdgdata", {"pdgid", "value_type"}},
   {"pdgdecay", {"pdgid"}},
   {"pdgfootnote", {"pdgid", "footnote_index"}},
   {"pdgid_map", {"source", "target"}},
@@ -26,11 +27,16 @@ const map<string, vector<string>> DB::IDENT_COLS{
   {"pdgitem_map", {"name", "target_id"}},
   {"pdgitem", {"name"}},
   {"pdgmeasurement_footnote", {"pdgmeasurement_id", "pdgfootnote_id"}},
-  {"pdgmeasurement", {"pdgid", "pdgreference_id", "sort"}},
-  {"pdgmeasurement_values", {"pdgmeasurement_id", "column_name", "sort"}},
+  {"pdgmeasurement", {"pdgid", "pdgreference_id"}},
+  {"pdgmeasurement_values", {"pdgmeasurement_id", "column_name"}},
   {"pdgparticle", {"pdgid", "name"}},
   {"pdgreference", {"document_id"}},
   {"pdgtext", {"pdgid"}}};
+
+const map<string, vector<string>> DB::EXTRA_IDENT_COLS{
+  {"pdgdata", {"sort"}},
+  {"pdgmeasurement", {"sort"}},
+  {"pdgmeasurement_values", {"sort"}}};
 
 const map<string, set<string>> DB::EXCLUDE_COLS{
   {"pdgdata", {"edition"}}, {"pdgid", {"parent_id", "mode_number", "sort"}}};
@@ -52,10 +58,19 @@ void DB::read_table(const string& table)
     auto& row_map = m_rowMap[table] = {};
 
     vector<size_t> ident_idcs;
-    for (const auto& ident_cname : IDENT_COLS.at(table)) {
+    for (const auto& cname : IDENT_COLS.at(table)) {
         const size_t idx =
-          ranges::find(m_colMap[table], ident_cname) - m_colMap[table].begin();
+          ranges::find(m_colMap[table], cname) - m_colMap[table].begin();
         ident_idcs.push_back(idx);
+    }
+
+    vector<size_t> extra_ident_idcs;
+    if (EXTRA_IDENT_COLS.contains(table)) {
+        for (const auto& cname : EXTRA_IDENT_COLS.at(table)) {
+            const size_t idx =
+              ranges::find(m_colMap[table], cname) - m_colMap[table].begin();
+            extra_ident_idcs.push_back(idx);
+        }
     }
 
     auto rows = m_db.all_rows(table);
@@ -65,12 +80,13 @@ void DB::read_table(const string& table)
         for (size_t idx : ident_idcs) {
             ident.keys().push_back(format("{}", row[idx]));
         }
+        const auto ident_str = format("{}", ident);
         row_map[format("{}", ident)] = row;
     }
 }
 
 const Rows& DB::rows(const string& table) const { return m_rowMap.at(table); }
-const ColSet& DB::cols(const string& table) const { return m_colMap.at(table); }
+const ColVec& DB::cols(const string& table) const { return m_colMap.at(table); }
 
 void DB::patch_all_refs()
 {
