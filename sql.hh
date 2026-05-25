@@ -21,6 +21,7 @@ using Val = std::variant<null_t, long, double, std::string>;
 bool operator==(const Val&, const Val&);
 
 using Row = std::vector<Val>;
+bool operator==(const Row&, const Row&);
 
 using RowStream = std::vector<sql::Row>;
 using Rows = std::map<ident_t, Row>;

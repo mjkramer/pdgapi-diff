@@ -1,5 +1,4 @@
 #include <cmath>
-#include <iomanip>
 #include <ranges>
 #include <string>
 #include <variant>
@@ -32,6 +31,14 @@ bool operator==(const Val& lhs, const Val& rhs)
     };
 
     return visit(compare, lhs);
+}
+
+bool operator==(const Row& lhs, const Row& rhs)
+{
+    for (const auto& [l, r] : ranges::views::zip(lhs, rhs)) {
+        if (l != r) return false;
+    }
+    return true;
 }
 
 Ident::Ident(const vector<string>& v) : m_keys(v) {}
