@@ -5,6 +5,7 @@
 #include <format>
 #include <iostream>
 #include <set>
+#include <stdexcept>
 #include <variant>
 
 using namespace sql;
@@ -20,7 +21,7 @@ const vector<string> DB::TABLES{"pdgdata",        "pdgdecay",
 
 const map<string, vector<string>> DB::IDENT_COLS{
   {"pdgdata", {"pdgid", "value_type"}},
-  {"pdgdecay", {"pdgid"}},
+  {"pdgdecay", {"pdgid", "sort"}},
   {"pdgfootnote", {"pdgid", "footnote_index"}},
   {"pdgid_map", {"source", "target"}},
   {"pdgid", {"pdgid"}},
@@ -81,7 +82,31 @@ void DB::read_table(const string& table)
             ident.keys().push_back(format("{}", row[idx]));
         }
         const auto ident_str = format("{}", ident);
-        row_map[format("{}", ident)] = row;
+        if (row_map.contains(ident_str)) {
+            m_ambigIdents[table].insert(ident_str);
+            Row& other_row = row_map[ident_str];
+            Ident other_ident{ident_str};
+            for (size_t idx : extra_ident_idcs) {
+                other_ident.keys().push_back(format("{}", other_row[idx]));
+            }
+            const auto other_ident_str = format("{}", other_ident);
+            if (row_map.contains((other_ident_str))) {
+                throw std::runtime_error{format("AMBIGUOUS1: {}", other_ident_str)};
+            }
+            row_map[other_ident_str] = std::move(other_row);
+            row_map.erase(ident_str);
+        }
+        if (m_ambigIdents[table].contains(ident_str)) {
+            for (size_t idx : extra_ident_idcs) {
+                ident.keys().push_back(format("{}", row[idx]));
+            }
+            const auto new_ident_str = format("{}", ident);
+            if (row_map.contains((new_ident_str))) {
+                throw std::runtime_error{format("AMBIGUOUS2: {}", new_ident_str)};
+            }
+            row_map[new_ident_str] = row;
+        } else
+            row_map[ident_str] = row;
     }
 }
 
