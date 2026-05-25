@@ -15,6 +15,7 @@ using ident_t = std::string;
 using primkey_t = long;
 using null_t = void*;
 
+using KeyVec = std::vector<primkey_t>;
 using TableVec = std::vector<tblname_t>;
 
 using Val = std::variant<null_t, long, double, std::string>;
@@ -23,8 +24,8 @@ bool operator==(const Val&, const Val&);
 using Row = std::vector<Val>;
 bool operator==(const Row&, const Row&);
 
-using RowStream = std::vector<sql::Row>;
-using Rows = std::map<ident_t, Row>;
+using RowVec = std::vector<sql::Row>;
+using Rows = std::map<ident_t, RowVec>;
 
 using ColVec = std::vector<colname_t>;
 using ColSet = std::set<colname_t>;
@@ -34,7 +35,7 @@ using ColMap = std::map<tblname_t, ColVec>;
 using ColSetMap = std::map<tblname_t, ColSet>;
 using IdMap = std::map<primkey_t, ident_t>;
 using IdMapMap = std::map<tblname_t, IdMap>;
-using InvIdMap = std::map<ident_t, primkey_t>;
+using InvIdMap = std::map<ident_t, KeyVec>;
 using InvIdMapMap = std::map<tblname_t, InvIdMap>;
 
 using IdentSet = std::set<ident_t>;

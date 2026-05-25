@@ -39,6 +39,8 @@ const ColMap DB::EXTRA_IDENT_COLS{{"pdgdata", {"sort"}},
                                   {"pdgmeasurement", {"sort"}},
                                   {"pdgmeasurement_values", {"sort"}}};
 
+const ColMap DB::FUZZY_COLS{{"pdgfootnote", {"text"}}};
+
 const ColSetMap DB::EXCLUDE_COLS{{"pdgdata", {"edition"}},
                                  {"pdgid", {"parent_id", "mode_number", "sort"}}};
 
@@ -91,25 +93,25 @@ void DB::read_table(const tblname_t& table)
             return format("{}", Ident{keys});
         };
 
-        if (row_map.contains(ident_str)) {
+        if (row_map.contains(ident_str) and not extra_ident_idcs.empty()) {
             m_ambigIdents[table].insert(ident_str);
-            Row& other_row = row_map[ident_str];
-            const auto other_new_ident_str = extended_ident(other_row);
-            if (row_map.contains((other_new_ident_str))) {
+            RowVec& other_rows = row_map[ident_str];
+            const auto other_new_ident_str = extended_ident(other_rows[0]);
+            if (row_map.contains(other_new_ident_str)) {
                 throw std::runtime_error{format("AMBIGUOUS1: {}", other_new_ident_str)};
             }
-            row_map[other_new_ident_str] = std::move(other_row);
+            row_map[other_new_ident_str] = std::move(other_rows);
             row_map.erase(ident_str);
         }
 
         if (m_ambigIdents[table].contains(ident_str)) {
             const auto new_ident_str = extended_ident(row);
-            if (row_map.contains((new_ident_str))) {
+            if (row_map.contains(new_ident_str)) {
                 throw std::runtime_error{format("AMBIGUOUS2: {}", new_ident_str)};
             }
-            row_map[new_ident_str] = row;
+            row_map[new_ident_str] = {row};
         } else
-            row_map[ident_str] = row;
+            row_map[ident_str].push_back(row);
     }
 }
 
@@ -166,16 +168,20 @@ void DB::patch_ident_refs(const tblname_t& src_table, const colname_t& column,
     src_id_map.clear();
     InvIdMap new_inv;
 
-    for (auto& [ident_str, row] : m_rowMap[src_table]) {
-        Ident ident{ident_str};
-        const auto src_id = m_invIdMaps[src_table][ident_str];
-        const size_t dest_id = ident.id_at(ident_idx);
+    for (auto& [ident, rows] : m_rowMap[src_table]) {
+        Ident ident_obj{ident};
+        const size_t dest_id = ident_obj.id_at(ident_idx);
         const string dest_ident = dest_id_map.at(dest_id);
-        ident[ident_idx] = format("({})", util::replace_all(dest_ident, "::", "@@"));
+        ident_obj[ident_idx] =
+          format("({})", util::replace_all(dest_ident, "::", "@@"));
 
-        src_id_map[src_id] = format("{}", ident);
-        new_rows[format("{}", ident)] = std::move(row);
-        new_inv[format("{}", ident)] = src_id;
+        const auto new_ident = format("{}", ident_obj);
+        new_rows[new_ident] = std::move(rows);
+
+        for (const auto src_id : m_invIdMaps[src_table][ident]) {
+            src_id_map[src_id] = new_ident;
+            new_inv[new_ident].push_back(src_id);
+        }
     }
 
     m_rowMap[src_table] = std::move(new_rows);
@@ -190,20 +196,22 @@ void DB::patch_refs(const tblname_t& src_table, const colname_t& column,
 
     const auto& id_map = m_idMaps[dest_table];
 
-    for (auto& [ident_str, row] : m_rowMap[src_table]) {
-        if (std::holds_alternative<long>(row[idx])) {
-            const auto id = get<long>(row[idx]);
-            if (not id_map.contains(id)) {
-                cerr << format("WARNING1: {} {} {} {}", src_table, column, dest_table,
-                               id)
-                     << endl;
-                row[idx] = "BORK";
+    for (auto& [ident_str, rows] : m_rowMap[src_table]) {
+        for (auto& row : rows) {
+            if (std::holds_alternative<long>(row[idx])) {
+                const auto id = get<long>(row[idx]);
+                if (not id_map.contains(id)) {
+                    cerr << format("WARNING1: {} {} {} {}", src_table, column,
+                                   dest_table, id)
+                         << endl;
+                    row[idx] = "BORK";
+                } else
+                    row[idx] = id_map.at(id);
+            } else if (std::holds_alternative<null_t>(row[idx])) {
+                row[idx] = "NULL";
             } else
-                row[idx] = id_map.at(id);
-        } else if (std::holds_alternative<null_t>(row[idx])) {
-            row[idx] = "NULL";
-        } else
-            throw;
+                throw;
+        }
     }
 }
 
@@ -217,10 +225,12 @@ IdMap& DB::get_id_map(const tblname_t& table)
     const auto& cols = m_colMap[table];
     const int id_idx = ranges::find(cols, "id") - cols.begin();
 
-    for (const auto& [ident_str, row] : m_rowMap[table]) {
-        const long id = get<long>(row[id_idx]);
-        id_map[id] = ident_str;
-        inv_id_map[ident_str] = id;
+    for (const auto& [ident_str, rows] : m_rowMap[table]) {
+        for (const auto& row : rows) {
+            const long id = get<long>(row[id_idx]);
+            id_map[id] = ident_str;
+            inv_id_map[ident_str].push_back(id);
+        }
     }
 
     return id_map;
@@ -231,7 +241,8 @@ void DB::patch_id(const tblname_t& table)
     const auto& cols = m_colMap[table];
     const int idx = ranges::find(cols, "id") - cols.begin();
 
-    for (auto& [ident_str, row] : m_rowMap[table]) {
-        row[idx] = ident_str;
+    for (auto& [ident_str, rows] : m_rowMap[table]) {
+        for (auto& row : rows)
+            row[idx] = ident_str;
     }
 }

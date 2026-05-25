@@ -9,28 +9,41 @@
 using namespace std;
 using namespace sql;
 
+vector<Delta> match_updates(const RowVec& rows1, const RowVec& rows2)
+{
+    if (not(rows1.size() == 1 and rows2.size() == 1))
+        throw std::runtime_error{"FIXME"};
+
+    if (rows1[0] != rows2[0])
+        return {Update(rows1[0], rows2[0])};
+    else
+        return {};
+}
+
 vector<Delta> compare(const DB& db1, const DB& db2, const std::string& table)
 {
     vector<Delta> ret;
 
-    const Rows& rows1 = db1.rows(table);
-    const Rows& rows2 = db2.rows(table);
-    Rows rows2_new{rows2};
+    const Rows& all_rows1 = db1.rows(table);
+    const Rows& all_rows2 = db2.rows(table);
+    Rows all_rows2_new{all_rows2};
 
-    for (const auto& [ident, row1] : rows1) {
-        if (not rows2.count(ident)) {
-            ret.push_back(Delete(row1));
+    for (const auto& [ident, rows1] : all_rows1) {
+        if (not all_rows2.contains(ident)) {
+            for (const auto& row : rows1)
+                // NB fold into trivial case of match_updates?
+                ret.push_back(Delete(row));
         } else {
-            const auto& row2 = rows2.at(ident);
-            if (row1 != row2) {
-                ret.push_back(Update(row1, row2));
-            }
-            rows2_new.erase(ident);
+            const auto& rows2 = all_rows2.at(ident);
+            for (const auto& delta : match_updates(rows1, rows2))
+                ret.push_back(delta);
+            all_rows2_new.erase(ident);
         }
     }
 
-    for (const auto& [ident, row2] : rows2_new) {
-        ret.push_back(Insert(row2));
+    for (const auto& [ident, rows2] : all_rows2_new) {
+        for (const auto& row : rows2)
+            ret.push_back(Insert(row));
     }
 
     return ret;

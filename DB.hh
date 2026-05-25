@@ -32,5 +32,6 @@ private:
 
     static const sql::ColMap IDENT_COLS;
     static const sql::ColMap EXTRA_IDENT_COLS;
+    static const sql::ColMap FUZZY_COLS;
     static const sql::ColSetMap EXCLUDE_COLS;
 };

@@ -12,7 +12,7 @@ class SqliteConn {
 public:
     SqliteConn(const std::string& path);
     std::vector<std::string> col_names(const std::string& table);
-    sql::RowStream all_rows(const std::string& table);
+    sql::RowVec all_rows(const std::string& table);
     void set_exclude_cols(const std::map<std::string, std::set<std::string>>&);
 
 private:
