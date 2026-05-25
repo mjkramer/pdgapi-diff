@@ -18,12 +18,10 @@ vector<Delta> match_updates(const RowVec& rows1, const RowVec& rows2)
         throw std::runtime_error{"FIXME"};
 
     if (rows1.size() == 0)
-        return rows2 | views::transform(util::construct<Insert>{}) |
-               to<vector<Delta>>();
+        return rows2 | views::transform(construct<Insert>{}) | to<vector<Delta>>();
 
     if (rows2.size() == 0)
-        return rows1 | views::transform(util::construct<Delete>{}) |
-               to<vector<Delta>>();
+        return rows1 | views::transform(construct<Delete>{}) | to<vector<Delta>>();
 
     if (rows1[0] != rows2[0])
         return {Update(rows1[0], rows2[0])};
