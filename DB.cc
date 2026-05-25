@@ -124,7 +124,8 @@ void DB::patch_ident_refs(const string& src_table, const string& column,
         const auto src_id = m_invIdMaps[src_table][ident_str];
         const size_t dest_id = ident.id_at(ident_idx);
         const string dest_ident = dest_id_map.at(dest_id);
-        ident[ident_idx] = format("({})", util::replace_all_copy(dest_ident, "::", "@@"));
+        ident[ident_idx] =
+          format("({})", util::replace_all_copy(dest_ident, "::", "@@"));
 
         src_id_map[src_id] = format("{}", ident);
         new_rows[format("{}", ident)] = std::move(row);
