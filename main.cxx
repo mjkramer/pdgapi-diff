@@ -1,4 +1,5 @@
 #include "DB.hh"
+#include "fuzzy.hh"
 #include "sql.hh"
 #include "util.hh"
 
@@ -12,14 +13,6 @@ using namespace util;
 
 using namespace std;
 using namespace std::ranges;
-
-struct FuzzyMatches {
-    using match_t = tuple<size_t, size_t>;
-    vector<match_t> matches;
-    vector<size_t> rem1, rem2;
-
-    FuzzyMatches(const vector<string>& v1, const vector<string>& v2) {}
-};
 
 vector<Delta> fuzzy_updates(const std::string& table, const RowVec& rows1,
                             const RowVec& rows2, const ColVec* cols)
