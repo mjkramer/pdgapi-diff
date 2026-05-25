@@ -4,22 +4,21 @@
 
 #include <format>
 #include <iostream>
-#include <set>
 #include <stdexcept>
 #include <variant>
 
 using namespace sql;
 using namespace std;
 
-const vector<string> DB::TABLES{"pdgdata",        "pdgdecay",
-                                "pdgfootnote",    "pdgid_map",
-                                "pdgid",          "pdgitem_map",
-                                "pdgitem",        "pdgmeasurement_footnote",
-                                "pdgmeasurement", "pdgmeasurement_values",
-                                "pdgparticle",    "pdgreference",
-                                "pdgtext"};
+const TableVec DB::TABLES{"pdgdata",        "pdgdecay",
+                          "pdgfootnote",    "pdgid_map",
+                          "pdgid",          "pdgitem_map",
+                          "pdgitem",        "pdgmeasurement_footnote",
+                          "pdgmeasurement", "pdgmeasurement_values",
+                          "pdgparticle",    "pdgreference",
+                          "pdgtext"};
 
-const map<string, vector<string>> DB::IDENT_COLS{
+const ColMap DB::IDENT_COLS{
   {"pdgdata", {"pdgid", "value_type"}},
   {"pdgdecay", {"pdgid", "sort"}},
   {"pdgfootnote", {"pdgid", "footnote_index"}},
@@ -34,14 +33,13 @@ const map<string, vector<string>> DB::IDENT_COLS{
   {"pdgreference", {"document_id"}},
   {"pdgtext", {"pdgid"}}};
 
-const map<string, vector<string>> DB::EXTRA_IDENT_COLS{
-  {"pdgdata", {"sort"}},
-  {"pdgitem_map", {"sort"}},
-  {"pdgmeasurement", {"sort"}},
-  {"pdgmeasurement_values", {"sort"}}};
+const ColMap DB::EXTRA_IDENT_COLS{{"pdgdata", {"sort"}},
+                                  {"pdgitem_map", {"sort"}},
+                                  {"pdgmeasurement", {"sort"}},
+                                  {"pdgmeasurement_values", {"sort"}}};
 
-const map<string, set<string>> DB::EXCLUDE_COLS{
-  {"pdgdata", {"edition"}}, {"pdgid", {"parent_id", "mode_number", "sort"}}};
+const ColSetMap DB::EXCLUDE_COLS{{"pdgdata", {"edition"}},
+                                 {"pdgid", {"parent_id", "mode_number", "sort"}}};
 
 DB::DB(const string& path) : m_db(path)
 {
@@ -55,7 +53,7 @@ DB::DB(const string& path) : m_db(path)
     patch_all_refs();
 }
 
-void DB::read_table(const string& table)
+void DB::read_table(const tblname_t& table)
 {
     auto& row_map = m_rowMap[table] = {};
 
@@ -111,14 +109,13 @@ void DB::read_table(const string& table)
     }
 }
 
-const Rows& DB::rows(const string& table) const { return m_rowMap.at(table); }
-const ColVec& DB::cols(const string& table) const { return m_colMap.at(table); }
+const Rows& DB::rows(const tblname_t& table) const { return m_rowMap.at(table); }
+const ColVec& DB::cols(const tblname_t& table) const { return m_colMap.at(table); }
 
 void DB::patch_all_refs()
 {
     for (const auto& table : TABLES) {
         get_id_map(table);
-        // patch_id(table);
     }
 
     patch_ident_refs("pdgitem_map", "target_id", "pdgitem");
@@ -148,8 +145,8 @@ void DB::patch_all_refs()
     }
 }
 
-void DB::patch_ident_refs(const string& src_table, const string& column,
-                          const string& dest_table)
+void DB::patch_ident_refs(const tblname_t& src_table, const colname_t& column,
+                          const tblname_t& dest_table)
 {
     patch_refs(src_table, column, dest_table);
 
@@ -180,11 +177,10 @@ void DB::patch_ident_refs(const string& src_table, const string& column,
 
     m_rowMap[src_table] = std::move(new_rows);
     m_invIdMaps[src_table] = std::move(new_inv);
-    // patch_id(src_table);
 }
 
-void DB::patch_refs(const string& src_table, const string& column,
-                    const string& dest_table)
+void DB::patch_refs(const tblname_t& src_table, const colname_t& column,
+                    const tblname_t& dest_table)
 {
     const auto& cols = m_colMap[src_table];
     const int idx = ranges::find(cols, column) - cols.begin();
@@ -208,7 +204,7 @@ void DB::patch_refs(const string& src_table, const string& column,
     }
 }
 
-IdMap& DB::get_id_map(const string& table)
+IdMap& DB::get_id_map(const tblname_t& table)
 {
     m_idMaps[table] = {};
     m_invIdMaps[table] = {};
@@ -227,7 +223,7 @@ IdMap& DB::get_id_map(const string& table)
     return id_map;
 }
 
-void DB::patch_id(const string& table)
+void DB::patch_id(const tblname_t& table)
 {
     const auto& cols = m_colMap[table];
     const int idx = ranges::find(cols, "id") - cols.begin();

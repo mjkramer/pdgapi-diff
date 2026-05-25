@@ -15,6 +15,8 @@ using ident_t = std::string;
 using primkey_t = long;
 using null_t = void*;
 
+using TableVec = std::vector<tblname_t>;
+
 using Val = std::variant<null_t, long, double, std::string>;
 bool operator==(const Val&, const Val&);
 

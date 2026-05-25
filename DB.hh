@@ -3,25 +3,23 @@
 #include "SqliteConn.hh"
 #include "sql.hh"
 
-#include <set>
-
 class DB {
 public:
     DB(const std::string& path);
-    const sql::Rows& rows(const std::string& table) const;
-    const sql::ColVec& cols(const std::string& table) const;
+    const sql::Rows& rows(const sql::tblname_t&) const;
+    const sql::ColVec& cols(const sql::tblname_t&) const;
 
-    static const std::vector<std::string> TABLES;
+    static const sql::TableVec TABLES;
 
 private:
     void patch_all_refs();
-    void read_table(const std::string& table);
-    void patch_ident_refs(const std::string& src_table, const std::string& column,
-                          const std::string& dest_table);
-    void patch_refs(const std::string& src_table, const std::string& column,
-                    const std::string& dest_table);
-    void patch_id(const std::string& table);
-    sql::IdMap& get_id_map(const std::string& table);
+    void read_table(const sql::tblname_t&);
+    void patch_ident_refs(const sql::tblname_t& src_table, const sql::colname_t& column,
+                          const sql::tblname_t& dest_table);
+    void patch_refs(const sql::tblname_t& src_table, const sql::colname_t& column,
+                    const sql::tblname_t& dest_table);
+    void patch_id(const sql::tblname_t&);
+    sql::IdMap& get_id_map(const sql::tblname_t&);
 
     SqliteConn m_db;
 
