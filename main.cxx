@@ -1,13 +1,16 @@
 #include "DB.hh"
 #include "sql.hh"
+#include "util.hh"
 
 #include <cxxopts.hpp>
 
-#include <filesystem>
 #include <iostream>
 
-using namespace std;
 using namespace sql;
+using namespace util;
+
+using namespace std;
+using namespace std::ranges;
 
 vector<Delta> match_updates(const RowVec& rows1, const RowVec& rows2)
 {
@@ -15,9 +18,13 @@ vector<Delta> match_updates(const RowVec& rows1, const RowVec& rows2)
         throw std::runtime_error{"FIXME"};
 
     if (rows1.size() == 0)
-        return {Insert(rows2[0])};
+        return rows2 | views::transform(util::construct<Insert>{}) |
+               to<vector<Delta>>();
+
     if (rows2.size() == 0)
-        return {Delete(rows1[0])};
+        return rows1 | views::transform(util::construct<Delete>{}) |
+               to<vector<Delta>>();
+
     if (rows1[0] != rows2[0])
         return {Update(rows1[0], rows2[0])};
     return {};
