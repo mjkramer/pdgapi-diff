@@ -21,30 +21,9 @@ struct FuzzyMatches {
     FuzzyMatches(const vector<string>& v1, const vector<string>& v2) {}
 };
 
-vector<Delta> match_updates(const std::string& table, const RowVec& rows1,
-                            const RowVec& rows2, const ColVec* cols = nullptr)
+vector<Delta> fuzzy_updates(const std::string& table, const RowVec& rows1,
+                            const RowVec& rows2, const ColVec* cols)
 {
-    // if (not(rows1.size() <= 1 and rows2.size() <= 1))
-    //     throw std::runtime_error{"FIXME"};
-
-    if (rows1.size() == 0)
-        return rows2 | views::transform(construct<Insert>{}) | to<vector<Delta>>();
-
-    if (rows2.size() == 0)
-        return rows1 | views::transform(construct<Delete>{}) | to<vector<Delta>>();
-
-    if (rows1.size() == 1 and rows2.size() == 1) {
-        if (rows1[0] != rows2[0])
-            return {Update(rows1[0], rows2[0])};
-        return {};
-    }
-
-    if (not DB::FUZZY_COLS.contains(table)) {
-        auto e = format("Need to define a fuzzy-search column for {}", table);
-        throw std::runtime_error{e};
-    }
-
-    assert(cols != nullptr);
     const auto& text_col = DB::FUZZY_COLS.at(table).at(0);
     const auto col_idx = index_of(*cols, text_col);
     auto get_text = [&](const auto& row) { return get<string>(row[col_idx]); };
@@ -67,6 +46,30 @@ vector<Delta> match_updates(const std::string& table, const RowVec& rows1,
       fzm.matches | views::transform(to_update) | to<vector<Delta>>();
 
     return concat(updates, inserts, deletes);
+}
+
+vector<Delta> match_updates(const std::string& table, const RowVec& rows1,
+                            const RowVec& rows2, const ColVec* cols = nullptr)
+{
+    if (rows1.size() == 0)
+        return rows2 | views::transform(construct<Insert>{}) | to<vector<Delta>>();
+
+    if (rows2.size() == 0)
+        return rows1 | views::transform(construct<Delete>{}) | to<vector<Delta>>();
+
+    if (rows1.size() == 1 and rows2.size() == 1) {
+        if (rows1[0] != rows2[0])
+            return {Update(rows1[0], rows2[0])};
+        return {};
+    }
+
+    if (not DB::FUZZY_COLS.contains(table)) {
+        auto e = format("Need to define a fuzzy-search column for {}", table);
+        throw std::runtime_error{e};
+    }
+
+    assert(cols != nullptr);
+    return fuzzy_updates(table, rows1, rows2, cols);
 }
 
 vector<Delta> compare(const DB& db1, const DB& db2, const std::string& table)
