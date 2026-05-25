@@ -36,7 +36,8 @@ bool operator==(const Val& lhs, const Val& rhs)
 bool operator==(const Row& lhs, const Row& rhs)
 {
     for (const auto& [l, r] : ranges::views::zip(lhs, rhs)) {
-        if (l != r) return false;
+        if (l != r)
+            return false;
     }
     return true;
 }
