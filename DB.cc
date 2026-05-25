@@ -100,6 +100,10 @@ void DB::patch_all_refs()
     patch_refs("pdgparticle", "pdgid_id", "pdgid");
     patch_refs("pdgparticle", "pdgitem_id", "pdgitem");
     patch_refs("pdgtext", "pdgid_id", "pdgid");
+
+    for (const auto& table : TABLES) {
+        patch_id(table);
+    }
 }
 
 void DB::patch_ident_refs(const string& src_table, const string& column,
