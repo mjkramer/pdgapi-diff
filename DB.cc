@@ -80,10 +80,14 @@ void DB::patch_all_refs()
     }
 
     patch_ident_refs("pdgitem_map", "target_id", "pdgitem");
+    patch_id("pdgitem_map");
     patch_ident_refs("pdgmeasurement", "pdgreference_id", "pdgreference");
+    patch_id("pdgmeasurement");
     patch_ident_refs("pdgmeasurement_values", "pdgmeasurement_id", "pdgmeasurement");
+    patch_id("pdgmeasurement_values");
     patch_ident_refs("pdgmeasurement_footnote", "pdgmeasurement_id", "pdgmeasurement");
     patch_ident_refs("pdgmeasurement_footnote", "pdgfootnote_id", "pdgfootnote");
+    patch_id("pdgmeasurement_footnote");
 
     patch_refs("pdgdata", "pdgid_id", "pdgid");
     patch_refs("pdgdecay", "pdgid_id", "pdgid");
@@ -120,7 +124,7 @@ void DB::patch_ident_refs(const string& src_table, const string& column,
         const auto src_id = m_invIdMaps[src_table][ident_str];
         const size_t dest_id = ident.id_at(ident_idx);
         const string dest_ident = dest_id_map.at(dest_id);
-        ident[ident_idx] = format("({})", dest_ident);
+        ident[ident_idx] = format("({})", util::replace_all_copy(dest_ident, "::", "@@"));
 
         src_id_map[src_id] = format("{}", ident);
         new_rows[format("{}", ident)] = std::move(row);
@@ -129,7 +133,7 @@ void DB::patch_ident_refs(const string& src_table, const string& column,
 
     m_rowMap[src_table] = std::move(new_rows);
     m_invIdMaps[src_table] = std::move(new_inv);
-    patch_id(src_table);
+    // patch_id(src_table);
 }
 
 void DB::patch_refs(const string& src_table, const string& column,
