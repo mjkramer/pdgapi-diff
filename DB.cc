@@ -76,7 +76,7 @@ void DB::patch_all_refs()
 {
     for (const auto& table : TABLES) {
         get_id_map(table);
-        patch_id(table);
+        // patch_id(table);
     }
 
     patch_ident_refs("pdgitem_map", "target_id", "pdgitem");
@@ -105,27 +105,30 @@ void DB::patch_ident_refs(const string& src_table, const string& column,
 
     const auto& ident_cols = IDENT_COLS.at(src_table);
     const int ident_idx = ranges::find(ident_cols, column) - ident_cols.begin();
-    const size_t src_id_idx = ranges::find(m_colMap[src_table], "id") - m_colMap[src_table].begin();
+    const size_t src_id_idx =
+      ranges::find(m_colMap[src_table], "id") - m_colMap[src_table].begin();
 
     auto& src_id_map = m_idMaps[src_table];
     const auto& dest_id_map = m_idMaps[dest_table];
 
     Rows new_rows;
     src_id_map.clear();
+    InvIdMap new_inv;
 
     for (auto& [ident_str, row] : m_rowMap[src_table]) {
         Ident ident{ident_str};
+        const auto src_id = m_invIdMaps[src_table][ident_str];
         const size_t dest_id = ident.id_at(ident_idx);
         const string dest_ident = dest_id_map.at(dest_id);
         ident[ident_idx] = format("({})", dest_ident);
 
-        const auto src_id = get<long>(row[src_id_idx]);
-        src_id_map[src_id] = format("{}", ident); 
-
+        src_id_map[src_id] = format("{}", ident);
         new_rows[format("{}", ident)] = std::move(row);
+        new_inv[format("{}", ident)] = src_id;
     }
 
     m_rowMap[src_table] = std::move(new_rows);
+    m_invIdMaps[src_table] = std::move(new_inv);
     patch_id(src_table);
 }
 
@@ -149,17 +152,17 @@ void DB::patch_refs(const string& src_table, const string& column,
                 row[idx] = id_map.at(id);
         } else if (std::holds_alternative<null_t>(row[idx])) {
             row[idx] = "NULL";
-        } else throw;
+        } else
+            throw;
     }
 }
 
 IdMap& DB::get_id_map(const string& table)
 {
-    if (m_idMaps.count(table))
-        return m_idMaps[table];
-
     m_idMaps[table] = {};
+    m_invIdMaps[table] = {};
     auto& id_map = m_idMaps[table];
+    auto& inv_id_map = m_invIdMaps[table];
 
     const auto& cols = m_colMap[table];
     const int id_idx = ranges::find(cols, "id") - cols.begin();
@@ -167,6 +170,7 @@ IdMap& DB::get_id_map(const string& table)
     for (const auto& [ident_str, row] : m_rowMap[table]) {
         const long id = get<long>(row[id_idx]);
         id_map[id] = ident_str;
+        inv_id_map[ident_str] = id;
     }
 
     return id_map;

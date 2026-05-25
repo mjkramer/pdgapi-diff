@@ -28,6 +28,7 @@ private:
     sql::RowMap m_rowMap;
     sql::ColMap m_colMap;
     sql::IdMapMap m_idMaps;
+    sql::InvIdMapMap m_invIdMaps;
 
     static const std::map<std::string, std::vector<std::string>> IDENT_COLS;
     static const std::map<std::string, std::set<std::string>> EXCLUDE_COLS;

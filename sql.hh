@@ -31,6 +31,8 @@ using RowMap = std::map<tblname_t, Rows>;
 using ColMap = std::map<tblname_t, ColSet>;
 using IdMap = std::map<primkey_t, ident_t>;
 using IdMapMap = std::map<tblname_t, IdMap>;
+using InvIdMap = std::map<ident_t, primkey_t>;
+using InvIdMapMap = std::map<tblname_t, InvIdMap>;
 
 struct Insert {
     Row row;
