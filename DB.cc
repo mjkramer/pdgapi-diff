@@ -33,8 +33,7 @@ const map<string, vector<string>> DB::IDENT_COLS{
   {"pdgtext", {"pdgid"}}};
 
 const map<string, set<string>> DB::EXCLUDE_COLS{
-    {"pdgid", {"parent_id", "mode_number", "sort"}}
-};
+  {"pdgdata", {"edition"}}, {"pdgid", {"parent_id", "mode_number", "sort"}}};
 
 DB::DB(const string& path) : m_db(path)
 {
@@ -75,11 +74,16 @@ const ColSet& DB::cols(const string& table) const { return m_colMap.at(table); }
 
 void DB::patch_all_refs()
 {
+    for (const auto& table : TABLES) {
+        get_id_map(table);
+        patch_id(table);
+    }
+
     patch_ident_refs("pdgitem_map", "target_id", "pdgitem");
-    patch_ident_refs("pdgmeasurement_footnote", "pdgmeasurement_id", "pdgmeasurement");
-    patch_ident_refs("pdgmeasurement_footnote", "pdgfootnote_id", "pdgfootnote");
     patch_ident_refs("pdgmeasurement", "pdgreference_id", "pdgreference");
     patch_ident_refs("pdgmeasurement_values", "pdgmeasurement_id", "pdgmeasurement");
+    patch_ident_refs("pdgmeasurement_footnote", "pdgmeasurement_id", "pdgmeasurement");
+    patch_ident_refs("pdgmeasurement_footnote", "pdgfootnote_id", "pdgfootnote");
 
     patch_refs("pdgdata", "pdgid_id", "pdgid");
     patch_refs("pdgdecay", "pdgid_id", "pdgid");
@@ -92,10 +96,6 @@ void DB::patch_all_refs()
     patch_refs("pdgparticle", "pdgid_id", "pdgid");
     patch_refs("pdgparticle", "pdgitem_id", "pdgitem");
     patch_refs("pdgtext", "pdgid_id", "pdgid");
-
-    for (const auto& table : TABLES) {
-        patch_id(table);
-    }
 }
 
 void DB::patch_ident_refs(const string& src_table, const string& column,
@@ -105,19 +105,28 @@ void DB::patch_ident_refs(const string& src_table, const string& column,
 
     const auto& ident_cols = IDENT_COLS.at(src_table);
     const int ident_idx = ranges::find(ident_cols, column) - ident_cols.begin();
+    const size_t src_id_idx = ranges::find(m_colMap[src_table], "id") - m_colMap[src_table].begin();
 
-    const auto& id_map = get_id_map(dest_table);
+    auto& src_id_map = m_idMaps[src_table];
+    const auto& dest_id_map = m_idMaps[dest_table];
 
     Rows new_rows;
+    src_id_map.clear();
 
     for (auto& [ident_str, row] : m_rowMap[src_table]) {
         Ident ident{ident_str};
-        const string dest_ident = id_map.at(ident.id_at(ident_idx));
+        const size_t dest_id = ident.id_at(ident_idx);
+        const string dest_ident = dest_id_map.at(dest_id);
         ident[ident_idx] = format("({})", dest_ident);
+
+        const auto src_id = get<long>(row[src_id_idx]);
+        src_id_map[src_id] = format("{}", ident); 
+
         new_rows[format("{}", ident)] = std::move(row);
     }
 
     m_rowMap[src_table] = std::move(new_rows);
+    patch_id(src_table);
 }
 
 void DB::patch_refs(const string& src_table, const string& column,
@@ -126,7 +135,7 @@ void DB::patch_refs(const string& src_table, const string& column,
     const auto& cols = m_colMap[src_table];
     const int idx = ranges::find(cols, column) - cols.begin();
 
-    const auto& id_map = get_id_map(dest_table);
+    const auto& id_map = m_idMaps[dest_table];
 
     for (auto& [ident_str, row] : m_rowMap[src_table]) {
         if (std::holds_alternative<long>(row[idx])) {
@@ -140,10 +149,7 @@ void DB::patch_refs(const string& src_table, const string& column,
                 row[idx] = id_map.at(id);
         } else if (std::holds_alternative<null_t>(row[idx])) {
             row[idx] = "NULL";
-        } else {
-            cerr << format("WARNING2: {} {} {} {}", src_table, column, dest_table, idx)
-                 << endl;
-        }
+        } else throw;
     }
 }
 

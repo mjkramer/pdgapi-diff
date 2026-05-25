@@ -5,8 +5,8 @@
 #include <sqlite3.h>
 
 #include <map>
-#include <string>
 #include <set>
+#include <string>
 
 class SqliteConn {
 public:

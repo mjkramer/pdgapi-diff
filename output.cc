@@ -7,9 +7,7 @@ using namespace util;
 
 using namespace std;
 
-
-string format_val(const Val& val, const Val* other,
-                  const string* diff_hl_color)
+string format_val(const Val& val, const Val* other, const string* diff_hl_color)
 {
     if (not other)
         return format("{:q}", val);
@@ -25,13 +23,13 @@ string format_val(const Val& val, const Val* other,
     return format("{}", s);
 }
 
-string format_row(const Row& row, const Row* other,
-                  const string* diff_hl_color)
+string format_row(const Row& row, const Row* other, const string* diff_hl_color)
 {
     auto val = [&](auto i) {
-         return format_val(row[i], other ? &((*other)[i]) : nullptr, diff_hl_color);
+        return format_val(row[i], other ? &((*other)[i]) : nullptr, diff_hl_color);
     };
 
     string_view delim(", ");
-    return views::iota(size_t(0), row.size()) | views::transform(val) | views::join_with(delim) | ranges::to<string>();
+    return views::iota(size_t(0), row.size()) | views::transform(val) |
+           views::join_with(delim) | ranges::to<string>();
 }

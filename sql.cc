@@ -13,25 +13,25 @@ namespace sql {
 
 static bool isclose(double a, double b, double rel_tol = 1e-6, double abs_tol = 0.0)
 {
-  const auto max_abs = max(fabs(a), fabs(b));
-  return fabs(a - b) <= max(rel_tol * max_abs, abs_tol);
+    const auto max_abs = max(fabs(a), fabs(b));
+    return fabs(a - b) <= max(rel_tol * max_abs, abs_tol);
 }
 
 bool operator==(const Val& lhs, const Val& rhs)
 {
-  auto compare = [&](auto&& l) {
-    using T = decay_t<decltype(l)>;
-    if (not holds_alternative<T>(rhs))
-      return false;
-    const auto r = get<T>(rhs);
+    auto compare = [&](auto&& l) {
+        using T = decay_t<decltype(l)>;
+        if (not holds_alternative<T>(rhs))
+            return false;
+        const auto r = get<T>(rhs);
 
-    if constexpr (is_same_v<T, double>)
-      return isclose(l, r);
-    else
-      return l == r;
-  };
+        if constexpr (is_same_v<T, double>)
+            return isclose(l, r);
+        else
+            return l == r;
+    };
 
-  return visit(compare, lhs);
+    return visit(compare, lhs);
 }
 
 Ident::Ident(const vector<string>& v) : m_keys(v) {}

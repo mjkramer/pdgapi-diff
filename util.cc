@@ -4,7 +4,6 @@
 
 using namespace std;
 
-
 namespace util {
 
 template <typename T> string to_str(const T& v)
@@ -14,4 +13,4 @@ template <typename T> string to_str(const T& v)
     return os.str();
 }
 
-}
+} // namespace util

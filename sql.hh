@@ -120,29 +120,30 @@ std::string format_row(const sql::Row& row, const sql::Row* other = nullptr,
                        const std::string* diff_hl_color = nullptr);
 
 constexpr std::string ANSI_RESET = "\033[0m";
-constexpr std::string ANSI_RED   = "\033[31m";
+constexpr std::string ANSI_RED = "\033[31m";
 constexpr std::string ANSI_GREEN = "\033[32m";
-constexpr std::string ANSI_CYAN  = "\033[36m";
+constexpr std::string ANSI_CYAN = "\033[36m";
 
 template <> struct std::formatter<sql::Delta> : std::formatter<std::string> {
     auto format(const sql::Delta& delta, std::format_context& ctx) const
     {
         auto c = util::cases{
-            [&](const sql::Insert& ins) {
-                const string row_str = format_row(ins.row);
-                return format_to(ctx.out(), "{}INSERT:{} {}", ANSI_GREEN, ANSI_RESET, row_str);
-            },
-            [&](const sql::Delete& del) {
-                const string row_str = format_row(del.row);
-                return format_to(ctx.out(), "{}DELETE:{} {}", ANSI_RED, ANSI_RESET, row_str);
-            },
-            [&](const sql::Update& upd) {
-                const string row1_str = format_row(upd.row, &upd.new_row, &ANSI_RED);
-                const string row2_str = format_row(upd.new_row, &upd.row, &ANSI_GREEN);
-                return format_to(ctx.out(), "{}UPDATE-:{} {}\n{}UPDATE+:{} {}",
-                                ANSI_RED, ANSI_RESET, row1_str, ANSI_GREEN, ANSI_RESET, row2_str);
-            }
-        };
+          [&](const sql::Insert& ins) {
+              const string row_str = format_row(ins.row);
+              return format_to(ctx.out(), "{}INSERT:{} {}", ANSI_GREEN, ANSI_RESET,
+                               row_str);
+          },
+          [&](const sql::Delete& del) {
+              const string row_str = format_row(del.row);
+              return format_to(ctx.out(), "{}DELETE:{} {}", ANSI_RED, ANSI_RESET,
+                               row_str);
+          },
+          [&](const sql::Update& upd) {
+              const string row1_str = format_row(upd.row, &upd.new_row, &ANSI_RED);
+              const string row2_str = format_row(upd.new_row, &upd.row, &ANSI_GREEN);
+              return format_to(ctx.out(), "{}UPDATE-:{} {}\n{}UPDATE+:{} {}", ANSI_RED,
+                               ANSI_RESET, row1_str, ANSI_GREEN, ANSI_RESET, row2_str);
+          }};
         return visit(c, delta);
     }
 };

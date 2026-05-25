@@ -36,8 +36,8 @@ vector<Delta> compare(const DB& db1, const DB& db2, const std::string& table)
     return ret;
 }
 
-
-void run(const string& db1_path, const string& db2_path, const optional<string>& a_table)
+void run(const string& db1_path, const string& db2_path,
+         const optional<string>& a_table)
 {
     DB db1(db1_path);
     DB db2(db2_path);
@@ -59,11 +59,11 @@ int main(int argc, char** argv)
 {
     const string progname = filesystem::path(argv[0]).filename().string();
     cxxopts::Options options(progname.c_str(), "PDG API diff tool");
-    options.add_options("",
-                        {{"h,help", "Print usage"},
-                         {"db1", "First DB file", cxxopts::value<std::string>()},
-                         {"db2", "Second DB file", cxxopts::value<std::string>()},
-                         {"t,table", "Table to compare", cxxopts::value<std::string>()}});
+    options.add_options(
+      "", {{"h,help", "Print usage"},
+           {"db1", "First DB file", cxxopts::value<std::string>()},
+           {"db2", "Second DB file", cxxopts::value<std::string>()},
+           {"t,table", "Table to compare", cxxopts::value<std::string>()}});
     options.parse_positional({"db1", "db2"});
     options.positional_help("db1 db2");
     cxxopts::ParseResult result = options.parse(argc, argv);

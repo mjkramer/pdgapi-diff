@@ -11,7 +11,8 @@ SqliteConn::SqliteConn(const std::string& path)
     sqlite3_open_v2(path.c_str(), &m_db, SQLITE_OPEN_READONLY, nullptr);
 }
 
-void SqliteConn::set_exclude_cols(const std::map<std::string, std::set<std::string>>& cols)
+void SqliteConn::set_exclude_cols(
+  const std::map<std::string, std::set<std::string>>& cols)
 {
     m_excludeCols = cols;
 }
