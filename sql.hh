@@ -65,11 +65,6 @@ private:
 
 } // namespace sql
 
-inline std::string joined(const std::vector<std::string>& v, const std::string& delim)
-{
-    return v | std::views::join_with(delim) | std::ranges::to<std::string>();
-}
-
 template <> struct std::formatter<sql::Val> {
     bool quote = false;
     constexpr auto parse(std::format_parse_context& ctx)
@@ -83,22 +78,8 @@ template <> struct std::formatter<sql::Val> {
             throw std::format_error("invalid format spec for sql::Val");
         return it;
     }
-    auto format(const sql::Val& v, std::format_context& ctx) const
-    {
-        auto fmt = [&](auto&& v) {
-            using T = decay_t<decltype(v)>;
-            if constexpr (is_same_v<T, string>)
-                if (quote)
-                    return std::format_to(ctx.out(), "\"{}\"", v);
-                else
-                    return std::format_to(ctx.out(), "{}", v);
-            else if constexpr (is_same_v<T, sql::null_t>)
-                return std::format_to(ctx.out(), "NULL");
-            else
-                return std::format_to(ctx.out(), "{}", v);
-        };
-        return visit(fmt, v);
-    }
+    std::format_context::iterator format(const sql::Val& v,
+                                         std::format_context& ctx) const;
 };
 
 template <> struct std::formatter<sql::Ident> : std::formatter<std::string> {

@@ -12,8 +12,13 @@ constexpr std::string ANSI_RED = "\033[31m";
 constexpr std::string ANSI_GREEN = "\033[32m";
 constexpr std::string ANSI_CYAN = "\033[36m";
 
-string format_val(const Val& val, const Val* other = nullptr,
-                  const string* diff_hl_color = nullptr)
+static inline string joined(const vector<string>& v, const string& delim)
+{
+    return v | views::join_with(delim) | ranges::to<string>();
+}
+
+static string format_val(const Val& val, const Val* other = nullptr,
+                         const string* diff_hl_color = nullptr)
 {
     if (not other)
         return format("{:q}", val);
@@ -29,8 +34,8 @@ string format_val(const Val& val, const Val* other = nullptr,
     return format("{}", s);
 }
 
-string format_row(const Row& row, const Row* other = nullptr,
-                  const string* diff_hl_color = nullptr)
+static string format_row(const Row& row, const Row* other = nullptr,
+                         const string* diff_hl_color = nullptr)
 {
     auto val = [&](auto i) {
         return format_val(row[i], other ? &((*other)[i]) : nullptr, diff_hl_color);
@@ -42,17 +47,35 @@ string format_row(const Row& row, const Row* other = nullptr,
 }
 
 std::format_context::iterator
+std::formatter<Val>::format(const Val& v, std::format_context& ctx) const
+{
+    auto fmt = [&](auto&& v) {
+        using T = decay_t<decltype(v)>;
+        if constexpr (is_same_v<T, string>)
+            if (quote)
+                return format_to(ctx.out(), "\"{}\"", v);
+            else
+                return format_to(ctx.out(), "{}", v);
+        else if constexpr (is_same_v<T, null_t>)
+            return format_to(ctx.out(), "NULL");
+        else
+            return format_to(ctx.out(), "{}", v);
+    };
+    return visit(fmt, v);
+}
+
+std::format_context::iterator
 std::formatter<Ident>::format(const Ident& ident, std::format_context& ctx) const
 {
     auto s = joined(ident.keys(), "::");
-    return std::format_to(ctx.out(), "{}", s);
+    return format_to(ctx.out(), "{}", s);
 }
 
 std::format_context::iterator
 std::formatter<ColSet>::format(const ColSet& cols, std::format_context& ctx) const
 {
     auto s = joined(cols, ", ");
-    return std::format_to(ctx.out(), "{}", s);
+    return format_to(ctx.out(), "{}", s);
 }
 
 std::format_context::iterator
