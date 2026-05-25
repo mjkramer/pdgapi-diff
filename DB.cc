@@ -4,6 +4,7 @@
 
 #include <format>
 #include <iostream>
+#include <ranges>
 #include <stdexcept>
 #include <variant>
 
@@ -53,53 +54,56 @@ DB::DB(const string& path) : m_db(path)
     patch_all_refs();
 }
 
+static inline vector<long> to_indices(const ColVec& cols, const ColVec& all_cols)
+{
+    auto to_index = [&](string_view name) {
+        return ranges::find(all_cols, name) - all_cols.begin();
+    };
+    return cols | ranges::views::transform(to_index) | ranges::to<vector>();
+}
+
+static inline vector<string> format_cols(const Row& row, const vector<long>& idcs)
+{
+    return idcs |
+           ranges::views::transform([&](size_t i) { return format("{}", row[i]); }) |
+           ranges::to<vector>();
+}
+
 void DB::read_table(const tblname_t& table)
 {
     auto& row_map = m_rowMap[table] = {};
 
-    vector<size_t> ident_idcs;
-    for (const auto& cname : IDENT_COLS.at(table)) {
-        const size_t idx =
-          ranges::find(m_colMap[table], cname) - m_colMap[table].begin();
-        ident_idcs.push_back(idx);
-    }
-
-    vector<size_t> extra_ident_idcs;
-    if (EXTRA_IDENT_COLS.contains(table)) {
-        for (const auto& cname : EXTRA_IDENT_COLS.at(table)) {
-            const size_t idx =
-              ranges::find(m_colMap[table], cname) - m_colMap[table].begin();
-            extra_ident_idcs.push_back(idx);
-        }
-    }
+    const auto ident_idcs = to_indices(IDENT_COLS.at(table), m_colMap[table]);
+    const auto extra_ident_idcs =
+      EXTRA_IDENT_COLS.contains(table)
+        ? to_indices(EXTRA_IDENT_COLS.at(table), m_colMap[table])
+        : vector<long>{};
 
     auto rows = m_db.all_rows(table);
 
     for (const auto& row : rows) {
-        Ident ident;
-        for (size_t idx : ident_idcs) {
-            ident.keys().push_back(format("{}", row[idx]));
-        }
-        const auto ident_str = format("{}", ident);
+        const auto ident_keys = format_cols(row, ident_idcs);
+        const auto ident_str = format("{}", Ident{ident_keys});
+
+        auto extended_ident = [&](const Row& row) {
+            const auto keys =
+              util::concat(ident_keys, format_cols(row, extra_ident_idcs));
+            return format("{}", Ident{keys});
+        };
+
         if (row_map.contains(ident_str)) {
             m_ambigIdents[table].insert(ident_str);
             Row& other_row = row_map[ident_str];
-            Ident other_ident{ident_str};
-            for (size_t idx : extra_ident_idcs) {
-                other_ident.keys().push_back(format("{}", other_row[idx]));
+            const auto other_new_ident_str = extended_ident(other_row);
+            if (row_map.contains((other_new_ident_str))) {
+                throw std::runtime_error{format("AMBIGUOUS1: {}", other_new_ident_str)};
             }
-            const auto other_ident_str = format("{}", other_ident);
-            if (row_map.contains((other_ident_str))) {
-                throw std::runtime_error{format("AMBIGUOUS1: {}", other_ident_str)};
-            }
-            row_map[other_ident_str] = std::move(other_row);
+            row_map[other_new_ident_str] = std::move(other_row);
             row_map.erase(ident_str);
         }
+
         if (m_ambigIdents[table].contains(ident_str)) {
-            for (size_t idx : extra_ident_idcs) {
-                ident.keys().push_back(format("{}", row[idx]));
-            }
-            const auto new_ident_str = format("{}", ident);
+            const auto new_ident_str = extended_ident(row);
             if (row_map.contains((new_ident_str))) {
                 throw std::runtime_error{format("AMBIGUOUS2: {}", new_ident_str)};
             }
@@ -167,8 +171,7 @@ void DB::patch_ident_refs(const tblname_t& src_table, const colname_t& column,
         const auto src_id = m_invIdMaps[src_table][ident_str];
         const size_t dest_id = ident.id_at(ident_idx);
         const string dest_ident = dest_id_map.at(dest_id);
-        ident[ident_idx] =
-          format("({})", util::replace_all_copy(dest_ident, "::", "@@"));
+        ident[ident_idx] = format("({})", util::replace_all(dest_ident, "::", "@@"));
 
         src_id_map[src_id] = format("{}", ident);
         new_rows[format("{}", ident)] = std::move(row);

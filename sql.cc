@@ -42,7 +42,7 @@ bool operator==(const Row& lhs, const Row& rhs)
     return true;
 }
 
-Ident::Ident(const vector<string>& v) : m_keys(v) {}
+Ident::Ident(vector<string> v) : m_keys(std::move(v)) {}
 
 Ident::Ident(const string& s)
 {

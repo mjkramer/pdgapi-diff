@@ -54,7 +54,7 @@ using Delta = std::variant<Insert, Delete, Update>;
 class Ident {
 public:
     Ident() = default;
-    Ident(const std::vector<std::string>&);
+    Ident(std::vector<std::string>);
     Ident(const std::string&);
 
     primkey_t id_at(size_t idx) const;

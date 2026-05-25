@@ -4,8 +4,7 @@ using namespace std;
 
 namespace util {
 
-std::string replace_all_copy(std::string_view s, std::string_view from,
-                             std::string_view to)
+std::string replace_all(std::string_view s, std::string_view from, std::string_view to)
 {
     std::string result;
     if (from.empty())
@@ -20,4 +19,5 @@ std::string replace_all_copy(std::string_view s, std::string_view from,
     result.append(s, prev);
     return result;
 }
+
 } // namespace util
