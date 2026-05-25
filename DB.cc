@@ -36,6 +36,7 @@ const map<string, vector<string>> DB::IDENT_COLS{
 
 const map<string, vector<string>> DB::EXTRA_IDENT_COLS{
   {"pdgdata", {"sort"}},
+  {"pdgitem_map", {"sort"}},
   {"pdgmeasurement", {"sort"}},
   {"pdgmeasurement_values", {"sort"}}};
 
