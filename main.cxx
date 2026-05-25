@@ -12,10 +12,19 @@ using namespace util;
 using namespace std;
 using namespace std::ranges;
 
-vector<Delta> match_updates(const RowVec& rows1, const RowVec& rows2)
+struct FuzzyMatches {
+    using match_t = tuple<size_t, size_t>;
+    vector<match_t> matches;
+    vector<size_t> rem1, rem2;
+
+    FuzzyMatches(const vector<string>& v1, const vector<string>& v2);
+};
+
+vector<Delta> match_updates(const std::string& table, const RowVec& rows1,
+                            const RowVec& rows2, const ColVec* cols = nullptr)
 {
-    if (not(rows1.size() <= 1 and rows2.size() <= 1))
-        throw std::runtime_error{"FIXME"};
+    // if (not(rows1.size() <= 1 and rows2.size() <= 1))
+    //     throw std::runtime_error{"FIXME"};
 
     if (rows1.size() == 0)
         return rows2 | views::transform(construct<Insert>{}) | to<vector<Delta>>();
@@ -23,8 +32,17 @@ vector<Delta> match_updates(const RowVec& rows1, const RowVec& rows2)
     if (rows2.size() == 0)
         return rows1 | views::transform(construct<Delete>{}) | to<vector<Delta>>();
 
-    if (rows1[0] != rows2[0])
-        return {Update(rows1[0], rows2[0])};
+    if (rows1.size() == 1 and rows2.size() == 1) {
+        if (rows1[0] != rows2[0])
+            return {Update(rows1[0], rows2[0])};
+        return {};
+    }
+
+    if (not DB::FUZZY_COLS.contains(table)) {
+        auto e = format("Need to define a fuzzy-search column for {}", table);
+        throw std::runtime_error{e};
+    }
+
     return {};
 }
 
@@ -38,18 +56,18 @@ vector<Delta> compare(const DB& db1, const DB& db2, const std::string& table)
 
     for (const auto& [ident, rows1] : all_rows1) {
         if (not all_rows2.contains(ident)) {
-            const auto deletes = match_updates(rows1, {});
+            const auto deletes = match_updates(table, rows1, {});
             ret.append_range(deletes);
         } else {
             all_rows2_new.erase(ident);
             const auto& rows2 = all_rows2.at(ident);
-            const auto deltas = match_updates(rows1, rows2);
+            const auto deltas = match_updates(table, rows1, rows2, &db1.cols(table));
             ret.append_range(deltas);
         }
     }
 
     for (const auto& [ident, rows2] : all_rows2_new) {
-        const auto inserts = match_updates({}, rows2);
+        const auto inserts = match_updates(table, {}, rows2);
         ret.append_range(inserts);
     }
 

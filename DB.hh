@@ -11,6 +11,11 @@ public:
 
     static const sql::TableVec TABLES;
 
+    static const sql::ColMap IDENT_COLS;
+    static const sql::ColMap EXTRA_IDENT_COLS;
+    static const sql::ColMap FUZZY_COLS;
+    static const sql::ColSetMap EXCLUDE_COLS;
+
 private:
     void patch_all_refs();
     void read_table(const sql::tblname_t&);
@@ -29,9 +34,4 @@ private:
     sql::InvIdMapMap m_invIdMaps;
 
     sql::IdentSetMap m_ambigIdents;
-
-    static const sql::ColMap IDENT_COLS;
-    static const sql::ColMap EXTRA_IDENT_COLS;
-    static const sql::ColMap FUZZY_COLS;
-    static const sql::ColSetMap EXCLUDE_COLS;
 };
