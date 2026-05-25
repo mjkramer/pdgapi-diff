@@ -58,9 +58,7 @@ DB::DB(const string& path) : m_db(path)
 
 static inline vector<long> to_indices(const ColVec& cols, const ColVec& all_cols)
 {
-    auto to_index = [&](string_view name) {
-        return ranges::find(all_cols, name) - all_cols.begin();
-    };
+    auto to_index = [&](string_view name) { return util::index_of(all_cols, name); };
     return cols | ranges::views::transform(to_index) | ranges::to<vector>();
 }
 
@@ -157,9 +155,8 @@ void DB::patch_ident_refs(const tblname_t& src_table, const colname_t& column,
     patch_refs(src_table, column, dest_table);
 
     const auto& ident_cols = IDENT_COLS.at(src_table);
-    const int ident_idx = ranges::find(ident_cols, column) - ident_cols.begin();
-    const size_t src_id_idx =
-      ranges::find(m_colMap[src_table], "id") - m_colMap[src_table].begin();
+    const int ident_idx = util::index_of(ident_cols, column);
+    const size_t src_id_idx = util::index_of(m_colMap[src_table], "id");
 
     auto& src_id_map = m_idMaps[src_table];
     const auto& dest_id_map = m_idMaps[dest_table];
@@ -192,7 +189,7 @@ void DB::patch_refs(const tblname_t& src_table, const colname_t& column,
                     const tblname_t& dest_table)
 {
     const auto& cols = m_colMap[src_table];
-    const int idx = ranges::find(cols, column) - cols.begin();
+    const size_t idx = util::index_of(cols, column);
 
     const auto& id_map = m_idMaps[dest_table];
 
@@ -223,7 +220,7 @@ IdMap& DB::get_id_map(const tblname_t& table)
     auto& inv_id_map = m_invIdMaps[table];
 
     const auto& cols = m_colMap[table];
-    const int id_idx = ranges::find(cols, "id") - cols.begin();
+    const size_t id_idx = util::index_of(cols, "id");
 
     for (const auto& [ident_str, rows] : m_rowMap[table]) {
         for (const auto& row : rows) {
@@ -239,7 +236,7 @@ IdMap& DB::get_id_map(const tblname_t& table)
 void DB::patch_id(const tblname_t& table)
 {
     const auto& cols = m_colMap[table];
-    const int idx = ranges::find(cols, "id") - cols.begin();
+    const size_t idx = util::index_of(cols, "id");
 
     for (auto& [ident_str, rows] : m_rowMap[table]) {
         for (auto& row : rows)

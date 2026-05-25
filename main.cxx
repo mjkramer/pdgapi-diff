@@ -4,6 +4,7 @@
 
 #include <cxxopts.hpp>
 
+#include <cassert>
 #include <iostream>
 
 using namespace sql;
@@ -17,7 +18,7 @@ struct FuzzyMatches {
     vector<match_t> matches;
     vector<size_t> rem1, rem2;
 
-    FuzzyMatches(const vector<string>& v1, const vector<string>& v2);
+    FuzzyMatches(const vector<string>& v1, const vector<string>& v2) {}
 };
 
 vector<Delta> match_updates(const std::string& table, const RowVec& rows1,
@@ -42,6 +43,21 @@ vector<Delta> match_updates(const std::string& table, const RowVec& rows1,
         auto e = format("Need to define a fuzzy-search column for {}", table);
         throw std::runtime_error{e};
     }
+
+    assert(cols != nullptr);
+    const auto text_idx =
+      ranges::find(*cols, DB::FUZZY_COLS.at(table).at(0)) - cols->begin();
+    auto get_text = [&](const auto& row) { return get<string>(row[text_idx]); };
+    const auto v1 = rows1 | views::transform(get_text) | to<vector>();
+    const auto v2 = rows2 | views::transform(get_text) | to<vector>();
+
+    const auto fzm = FuzzyMatches(v1, v2);
+
+    auto to_delta = [&](const auto m) {
+        auto [i1, i2] = m;
+        return Update(rows1[i1], rows2[i2]);
+    };
+    const auto deltas = fzm.matches | views::transform(to_delta) | to<vector<Delta>>();
 
     return {};
 }
