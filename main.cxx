@@ -45,21 +45,28 @@ vector<Delta> match_updates(const std::string& table, const RowVec& rows1,
     }
 
     assert(cols != nullptr);
-    const auto text_idx =
-      ranges::find(*cols, DB::FUZZY_COLS.at(table).at(0)) - cols->begin();
-    auto get_text = [&](const auto& row) { return get<string>(row[text_idx]); };
+    const auto& text_col = DB::FUZZY_COLS.at(table).at(0);
+    const auto col_idx = index_of(*cols, text_col);
+    auto get_text = [&](const auto& row) { return get<string>(row[col_idx]); };
     const auto v1 = rows1 | views::transform(get_text) | to<vector>();
     const auto v2 = rows2 | views::transform(get_text) | to<vector>();
 
     const auto fzm = FuzzyMatches(v1, v2);
+    assert(not(fzm.rem1 > 0 and rzm.rem2 > 0));
 
-    auto to_delta = [&](const auto m) {
+    auto to_insert = [&](const auto i) { return Insert(rows2[i]); };
+    auto to_delete = [&](const auto i) { return Delete(rows1[i]); };
+    auto to_update = [&](const auto m) {
         auto [i1, i2] = m;
         return Update(rows1[i1], rows2[i2]);
     };
-    const auto deltas = fzm.matches | views::transform(to_delta) | to<vector<Delta>>();
 
-    return {};
+    const auto inserts = fzm.rem2 | views::transform(to_insert) | to<vector<Delta>>();
+    const auto deletes = fzm.rem1 | views::transform(to_delete) | to<vector<Delta>>();
+    const auto updates =
+      fzm.matches | views::transform(to_update) | to<vector<Delta>>();
+
+    return concat(updates, inserts, deletes);
 }
 
 vector<Delta> compare(const DB& db1, const DB& db2, const std::string& table)
