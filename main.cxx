@@ -68,6 +68,21 @@ vector<Delta> match_updates(const std::string& table, const RowVec& rows1,
     return fuzzy_updates(table, rows1, rows2, cols);
 }
 
+vector<Delta> sort_deltas(const vector<Delta>& v)
+{
+    auto deletes = v | views::filter(holds<Delete>{}) | to<vector>();
+    auto inserts = v | views::filter(holds<Insert>{}) | to<vector>();
+    auto updates = v | views::filter(holds<Update>{}) | to<vector>();
+
+    auto sort_by_id = [&](auto& v) { ranges::sort(v, {}, delta2id); };
+
+    sort_by_id(deletes);
+    sort_by_id(inserts);
+    sort_by_id(updates);
+
+    return concat(deletes, inserts, updates);
+}
+
 vector<Delta> compare(const DB& db1, const DB& db2, const std::string& table)
 {
     vector<Delta> ret;
@@ -93,7 +108,7 @@ vector<Delta> compare(const DB& db1, const DB& db2, const std::string& table)
         ret.append_range(inserts);
     }
 
-    return ret;
+    return sort_deltas(ret);
 }
 
 void run(const string& db1_path, const string& db2_path,

@@ -42,4 +42,11 @@ template <typename R, typename V> long index_of(R r, V v)
     return std::ranges::find(r, v) - r.begin();
 }
 
+template <class T> struct holds {
+    template <class V> bool operator()(const V& v) const
+    {
+        return std::holds_alternative<T>(v);
+    }
+};
+
 } // namespace util

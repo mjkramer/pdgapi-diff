@@ -51,6 +51,7 @@ struct Update {
     Row row, new_row;
 };
 using Delta = std::variant<Insert, Delete, Update>;
+std::string delta2id(Delta);
 
 class Ident {
 public:

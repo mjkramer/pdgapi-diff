@@ -4,9 +4,11 @@
 #include <variant>
 
 #include "sql.hh"
+#include "util.hh"
 
 using namespace std;
 using namespace sql;
+using namespace util;
 
 namespace sql {
 
@@ -40,6 +42,14 @@ bool operator==(const Row& lhs, const Row& rhs)
             return false;
     }
     return true;
+}
+
+string delta2id(Delta d)
+{
+    auto c = cases{[](const Insert& ins) { return format("{}", ins.row[0]); },
+                   [](const Delete& del) { return format("{}", del.row[0]); },
+                   [](const Update& upd) { return format("{}", upd.row[0]); }};
+    return visit(c, d);
 }
 
 Ident::Ident(vector<string> v) : m_keys(std::move(v)) {}
