@@ -45,7 +45,8 @@ const ColMap DB::FUZZY_COLS{{"pdgfootnote", {"text"}}};
 
 const ColSetMap DB::EXCLUDE_COLS{{"pdgdata", {"edition"}},
                                  {"pdgfootnote", {"footnote_index", "changebar"}},
-                                 {"pdgid", {"parent_id", "mode_number", "sort"}}};
+                                 {"pdgid", {"parent_id", "mode_number", "sort"}},
+                                 {"pdgmeasurement", {"changebar"}}};
 
 const ColSetMap DB::POST_EXCLUDE_COLS{{"pdgmeasurement", {"sort"}}};
 
