@@ -12,9 +12,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 file(GLOB SOURCES CONFIGURE_DEPENDS "*.cc")
 add_executable(pdgapi-diff main.cxx ${SOURCES})
 
+target_compile_options(pdgapi-diff
+  PRIVATE -march=native)
+
 target_link_libraries(pdgapi-diff
   PUBLIC "-static"
   PRIVATE
     unofficial::sqlite3::sqlite3
     cxxopts::cxxopts
     range-v3::range-v3)
+

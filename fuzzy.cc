@@ -1,5 +1,7 @@
 #include "fuzzy.hh"
 
+#include "levenshtein-sse.hpp"
+
 #include <algorithm>
 #include <cassert>
 #include <numeric>
@@ -38,7 +40,8 @@ size_t levenshtein_distance(string_view s1, string_view s2)
 
 static float distance(string_view s1, string_view s2)
 {
-    return levenshtein_distance(s1, s2);
+    // return levenshtein_distance(s1, s2);
+    return levenshteinSSE::levenshtein(s1, s2);
 }
 
 static auto all_distances(const vector<string>& v1, const vector<string>& v2)
