@@ -105,11 +105,24 @@ void DB::read_table(const tblname_t& table)
     for (const auto& row : rows) {
         const auto ident_keys = format_cols(row, ident_idcs);
         const auto ident_str = format("{}", Ident{ident_keys});
+        const auto n_base_keys = IDENT_COLS.at(table).size();
+        const auto max_keys = ident_keys.size() + extra_ident_idcs.size();
 
         auto extended_ident = [&](const Row& row) {
-            const auto keys =
-              util::concat(ident_keys, format_cols(row, extra_ident_idcs));
-            return format("{}", Ident{keys});
+            Ident ident{ident_str};
+            auto& keys = ident.keys();
+            while (keys.size() < max_keys) {
+                const auto j = keys.size() - n_base_keys;
+                const auto new_key = row[extra_ident_idcs[j]];
+                keys.push_back(format("{}", new_key));
+                const auto str = format("{}", ident);
+
+                if ((not row_map.contains(str)) and (not m_ambigIdents.contains(str)))
+                    break;
+
+                m_ambigIdents[table].insert(format("{}", ident));
+            }
+            return format("{}", ident);
         };
 
         if (row_map.contains(ident_str) and not extra_ident_idcs.empty()) {
