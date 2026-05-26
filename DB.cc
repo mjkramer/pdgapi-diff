@@ -9,6 +9,8 @@
 #include <variant>
 
 using namespace sql;
+using namespace util;
+
 using namespace std;
 
 const TableVec DB::TABLES{"pdgdata",        "pdgdecay",
@@ -45,6 +47,8 @@ const ColSetMap DB::EXCLUDE_COLS{{"pdgdata", {"edition"}},
                                  {"pdgfootnote", {"footnote_index", "changebar"}},
                                  {"pdgid", {"parent_id", "mode_number", "sort"}}};
 
+const ColSetMap DB::POST_EXCLUDE_COLS{{"pdgmeasurement", {"sort"}}};
+
 DB::DB(const string& path) : m_db(path)
 {
     m_db.set_exclude_cols(DB::EXCLUDE_COLS);
@@ -55,6 +59,21 @@ DB::DB(const string& path) : m_db(path)
     }
 
     patch_all_refs();
+    do_post_exclude();
+}
+
+void DB::do_post_exclude()
+{
+    for (const auto& [table, cols] : POST_EXCLUDE_COLS) {
+        auto& colmap = m_colMap[table];
+        for (const auto& col : cols) {
+            const auto idx = index_of(colmap, col);
+            colmap.erase(colmap.begin() + idx);
+            for (auto& [ident, rows] : m_rowMap[table])
+                for (auto& row : rows)
+                    row.erase(row.begin() + idx);
+        }
+    }
 }
 
 static inline vector<long> to_indices(const ColVec& cols, const ColVec& all_cols)

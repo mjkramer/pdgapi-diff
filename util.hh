@@ -35,8 +35,6 @@ template <typename T> struct construct {
     }
 };
 
-std::string replace_all(std::string_view s, std::string_view from, std::string_view to);
-
 template <typename R, typename V> long index_of(R r, V v)
 {
     return std::ranges::find(r, v) - r.begin();
@@ -48,5 +46,7 @@ template <class T> struct holds {
         return std::holds_alternative<T>(v);
     }
 };
+
+std::string replace_all(std::string_view s, std::string_view from, std::string_view to);
 
 } // namespace util

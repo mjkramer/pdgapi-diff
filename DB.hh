@@ -15,6 +15,7 @@ public:
     static const sql::ColMap EXTRA_IDENT_COLS;
     static const sql::ColMap FUZZY_COLS;
     static const sql::ColSetMap EXCLUDE_COLS;
+    static const sql::ColSetMap POST_EXCLUDE_COLS;
 
 private:
     void patch_all_refs();
@@ -25,6 +26,7 @@ private:
                     const sql::tblname_t& dest_table);
     void patch_id(const sql::tblname_t&);
     sql::IdMap& get_id_map(const sql::tblname_t&);
+    void do_post_exclude();
 
     SqliteConn m_db;
 
