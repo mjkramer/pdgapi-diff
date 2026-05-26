@@ -19,6 +19,8 @@ public:
 
 private:
     void patch_all_refs();
+    std::string extended_ident(const sql::Row&, const std::string&, const std::string&,
+                               const std::vector<long>&);
     void read_table(const sql::tblname_t&);
     void patch_ident_refs(const sql::tblname_t& src_table, const sql::colname_t& column,
                           const sql::tblname_t& dest_table);

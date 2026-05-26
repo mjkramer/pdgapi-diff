@@ -2,6 +2,7 @@
 #include "sql.hh"
 #include "util.hh"
 
+#include <cassert>
 #include <format>
 #include <iostream>
 #include <ranges>
@@ -90,45 +91,58 @@ static inline vector<string> format_cols(const Row& row, const vector<long>& idc
            ranges::to<vector>();
 }
 
+static inline vector<long> get_extra_ident_idcs(const DB& db, const string& table)
+{
+    return db.EXTRA_IDENT_COLS.contains(table)
+             ? to_indices(db.EXTRA_IDENT_COLS.at(table), db.cols(table))
+             : vector<long>{};
+}
+
+inline string DB::extended_ident(const Row& row, const string& base_ident,
+                                 const string& table,
+                                 const vector<long>& extra_ident_idcs)
+{
+    Ident ident{base_ident};
+    auto& keys = ident.keys();
+    const auto orig_size = keys.size();
+    for (auto idx : extra_ident_idcs) {
+        const auto new_key = row[idx];
+        keys.push_back(format("{}", new_key));
+        const auto str = format("{}", ident);
+
+        if ((not m_rowMap[table].contains(str)) and
+            (not m_ambigIdents[table].contains(str)))
+            break;
+
+        m_ambigIdents[table].insert(str);
+    }
+    return format("{}", ident);
+}
+
 void DB::read_table(const tblname_t& table)
 {
     auto& row_map = m_rowMap[table] = {};
 
     const auto ident_idcs = to_indices(IDENT_COLS.at(table), m_colMap[table]);
-    const auto extra_ident_idcs =
-      EXTRA_IDENT_COLS.contains(table)
-        ? to_indices(EXTRA_IDENT_COLS.at(table), m_colMap[table])
-        : vector<long>{};
+    const auto extra_ident_idcs = get_extra_ident_idcs(*this, table);
+    const auto n_base_keys = IDENT_COLS.at(table).size();
+    const auto max_keys = ident_idcs.size() + extra_ident_idcs.size();
 
     auto rows = m_db.all_rows(table);
 
     for (const auto& row : rows) {
         const auto ident_keys = format_cols(row, ident_idcs);
         const auto ident_str = format("{}", Ident{ident_keys});
-        const auto n_base_keys = IDENT_COLS.at(table).size();
-        const auto max_keys = ident_keys.size() + extra_ident_idcs.size();
-
-        auto extended_ident = [&](const Row& row) {
-            Ident ident{ident_str};
-            auto& keys = ident.keys();
-            while (keys.size() < max_keys) {
-                const auto j = keys.size() - n_base_keys;
-                const auto new_key = row[extra_ident_idcs[j]];
-                keys.push_back(format("{}", new_key));
-                const auto str = format("{}", ident);
-
-                if ((not row_map.contains(str)) and (not m_ambigIdents.contains(str)))
-                    break;
-
-                m_ambigIdents[table].insert(format("{}", ident));
-            }
-            return format("{}", ident);
+        auto extd = [&](const Row& r) {
+            return extended_ident(r, ident_str, table, extra_ident_idcs);
         };
 
         if (row_map.contains(ident_str) and not extra_ident_idcs.empty()) {
             m_ambigIdents[table].insert(ident_str);
             RowVec& other_rows = row_map[ident_str];
-            const auto other_new_ident_str = extended_ident(other_rows[0]);
+            assert(other_rows.size() == 1);
+            const auto other_new_ident_str = extd(other_rows[0]);
+            // FIXME: Handle this case properly (i.e. resort to fuzzy matching)
             if (row_map.contains(other_new_ident_str)) {
                 throw std::runtime_error{format("AMBIGUOUS1: {}", other_new_ident_str)};
             }
@@ -137,7 +151,8 @@ void DB::read_table(const tblname_t& table)
         }
 
         if (m_ambigIdents[table].contains(ident_str)) {
-            const auto new_ident_str = extended_ident(row);
+            const auto new_ident_str = extd(row);
+            // FIXME: See above
             if (row_map.contains(new_ident_str)) {
                 throw std::runtime_error{format("AMBIGUOUS2: {}", new_ident_str)};
             }
