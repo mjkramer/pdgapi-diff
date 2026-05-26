@@ -42,6 +42,7 @@ const ColMap DB::EXTRA_IDENT_COLS{{"pdgdata", {"sort"}},
 const ColMap DB::FUZZY_COLS{{"pdgfootnote", {"text"}}};
 
 const ColSetMap DB::EXCLUDE_COLS{{"pdgdata", {"edition"}},
+                                 {"pdgfootnote", {"footnote_index", "changebar"}},
                                  {"pdgid", {"parent_id", "mode_number", "sort"}}};
 
 DB::DB(const string& path) : m_db(path)
