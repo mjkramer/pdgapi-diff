@@ -7,6 +7,7 @@
 
 #include <cassert>
 #include <iostream>
+#include <ranges>
 
 using namespace sql;
 using namespace util;
@@ -27,16 +28,18 @@ vector<Delta> fuzzy_updates(const std::string& table, const RowVec& rows1,
     assert(not(fzm.rem1 > 0 and rzm.rem2 > 0));
 
     auto to_insert = [&](const auto i) { return Insert(rows2[i]); };
+    const auto inserts = fzm.rem2 | views::transform(to_insert) | to<vector<Delta>>();
+
     auto to_delete = [&](const auto i) { return Delete(rows1[i]); };
+    const auto deletes = fzm.rem1 | views::transform(to_delete) | to<vector<Delta>>();
+
     auto to_update = [&](const auto m) {
         auto [i1, i2] = m;
         return Update(rows1[i1], rows2[i2]);
     };
-
-    const auto inserts = fzm.rem2 | views::transform(to_insert) | to<vector<Delta>>();
-    const auto deletes = fzm.rem1 | views::transform(to_delete) | to<vector<Delta>>();
-    const auto updates =
-      fzm.matches | views::transform(to_update) | to<vector<Delta>>();
+    auto modified = [&](const Update upd) { return upd.row != upd.new_row; };
+    const auto updates = fzm.matches | views::transform(to_update) |
+                         views::filter(modified) | to<vector<Delta>>();
 
     return concat(updates, inserts, deletes);
 }

@@ -22,7 +22,7 @@ const TableVec DB::TABLES{"pdgdata",        "pdgdecay",
 const ColMap DB::IDENT_COLS{
   {"pdgdata", {"pdgid", "value_type"}},
   {"pdgdecay", {"pdgid", "sort"}},
-  {"pdgfootnote", {"pdgid", "footnote_index"}},
+  {"pdgfootnote", {"pdgid"}},
   {"pdgid_map", {"source", "target"}},
   {"pdgid", {"pdgid"}},
   {"pdgitem_map", {"name", "target_id"}},
