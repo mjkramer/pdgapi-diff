@@ -32,7 +32,7 @@ const ColMap DB::IDENT_COLS{
   {"pdgitem", {"name"}},
   {"pdgmeasurement_footnote", {"pdgmeasurement_id", "pdgfootnote_id"}},
   {"pdgmeasurement", {"pdgid", "pdgreference_id", "technique"}},
-  {"pdgmeasurement_values", {"pdgmeasurement_id", "column_name"}},
+  {"pdgmeasurement_values", {"pdgmeasurement_id"}},
   {"pdgparticle", {"pdgid", "name"}},
   {"pdgreference", {"document_id"}},
   {"pdgtext", {"pdgid"}}};
@@ -40,7 +40,7 @@ const ColMap DB::IDENT_COLS{
 const ColMap DB::EXTRA_IDENT_COLS{{"pdgdata", {"sort"}},
                                   {"pdgitem_map", {"sort"}},
                                   {"pdgmeasurement", {"comment", "sort"}},
-                                  {"pdgmeasurement_values", {"sort"}}};
+                                  {"pdgmeasurement_values", {"column_name", "sort"}}};
 
 const ColMap DB::FUZZY_COLS{{"pdgfootnote", {"text"}}};
 
