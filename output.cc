@@ -11,6 +11,7 @@ using namespace std;
 constexpr std::string ANSI_RESET = "\033[0m";
 constexpr std::string ANSI_RED = "\033[31m";
 constexpr std::string ANSI_GREEN = "\033[32m";
+constexpr std::string ANSI_BLUE = "\033[34m";
 constexpr std::string ANSI_CYAN = "\033[36m";
 
 static inline string joined(const vector<string>& v, const string& delim)
@@ -39,7 +40,11 @@ static string format_row(const Row& row, const Row* other = nullptr,
                          const string* diff_hl_color = nullptr)
 {
     auto val = [&](auto i) {
-        return format_val(row[i], other ? &((*other)[i]) : nullptr, diff_hl_color);
+        const auto other_pv = other ? &((*other)[i]) : nullptr;
+        const auto val_str = format_val(row[i], other_pv, diff_hl_color);
+        const auto prefix = i == 0 ? ANSI_BLUE : "";
+        const auto suffix = i == 0 ? ANSI_RESET : "";
+        return format("{}{}{}", prefix, val_str, suffix);
     };
 
     string_view delim(", ");
