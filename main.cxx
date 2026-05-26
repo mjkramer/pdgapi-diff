@@ -70,17 +70,16 @@ vector<Delta> match_updates(const std::string& table, const RowVec& rows1,
 
 vector<Delta> sort_deltas(const vector<Delta>& v)
 {
-    auto deletes = v | views::filter(holds<Delete>{}) | to<vector>();
-    auto inserts = v | views::filter(holds<Insert>{}) | to<vector>();
+    const auto deletes = v | views::filter(holds<Delete>{}) | to<vector>();
+    const auto inserts = v | views::filter(holds<Insert>{}) | to<vector>();
     auto updates = v | views::filter(holds<Update>{}) | to<vector>();
+    auto del_ins = concat(deletes, inserts);
 
     auto sort_by_id = [&](auto& v) { ranges::sort(v, {}, delta2id); };
-
-    sort_by_id(deletes);
-    sort_by_id(inserts);
+    sort_by_id(del_ins);
     sort_by_id(updates);
 
-    return concat(deletes, inserts, updates);
+    return concat(del_ins, updates);
 }
 
 vector<Delta> compare(const DB& db1, const DB& db2, const std::string& table)
