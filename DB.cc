@@ -28,7 +28,7 @@ const ColMap DB::IDENT_COLS{
   {"pdgitem_map", {"name", "target_id"}},
   {"pdgitem", {"name"}},
   {"pdgmeasurement_footnote", {"pdgmeasurement_id", "pdgfootnote_id"}},
-  {"pdgmeasurement", {"pdgid", "pdgreference_id"}},
+  {"pdgmeasurement", {"pdgid", "pdgreference_id", "comment"}},
   {"pdgmeasurement_values", {"pdgmeasurement_id", "column_name"}},
   {"pdgparticle", {"pdgid", "name"}},
   {"pdgreference", {"document_id"}},
