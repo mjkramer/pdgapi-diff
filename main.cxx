@@ -25,7 +25,7 @@ vector<Delta> fuzzy_updates(const std::string& table, const RowVec& rows1,
     const auto v2 = rows2 | views::transform(get_text) | to<vector>();
 
     const auto fzm = FuzzyMatches(v1, v2);
-    assert(not(fzm.rem1 > 0 and rzm.rem2 > 0));
+    assert(not(fzm.rem1.size() > 0 and fzm.rem2.size() > 0));
 
     auto to_insert = [&](const auto i) { return Insert(rows2[i]); };
     const auto inserts = fzm.rem2 | views::transform(to_insert) | to<vector<Delta>>();
