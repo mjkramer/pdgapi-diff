@@ -1,5 +1,7 @@
 #include "util.hh"
 
+#include <algorithm>
+
 using namespace std;
 
 namespace util {
@@ -18,6 +20,18 @@ std::string replace_all(std::string_view s, std::string_view from, std::string_v
     }
     result.append(s, prev);
     return result;
+}
+
+void trimInPlace(std::string& s) {
+    // Trim trailing whitespace
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }).base(), s.end());
+
+    // Trim leading whitespace
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }));
 }
 
 } // namespace util

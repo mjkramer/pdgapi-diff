@@ -1,4 +1,5 @@
 #include "SqliteConn.hh"
+#include "util.hh"
 
 #include <format>
 #include <ranges>
@@ -6,7 +7,8 @@
 using namespace std;
 using namespace sql;
 
-SqliteConn::SqliteConn(const std::string& path)
+SqliteConn::SqliteConn(const std::string& path, bool trimWhitespace)
+  : m_trimWhitespace(trimWhitespace)
 {
     sqlite3_open_v2(path.c_str(), &m_db, SQLITE_OPEN_READONLY, nullptr);
 }
@@ -68,7 +70,12 @@ RowVec SqliteConn::all_rows(const string& table)
                 break;
             case SQLITE_BLOB:
             case SQLITE_TEXT:
-                row.emplace_back((const char*)sqlite3_column_text(stmt, i));
+                {
+                    std::string text{(const char*)sqlite3_column_text(stmt, i)};
+                    if (m_trimWhitespace)
+                        util::trimInPlace(text);
+                    row.emplace_back(std::move(text));
+                }
                 break;
             default:
                 throw;

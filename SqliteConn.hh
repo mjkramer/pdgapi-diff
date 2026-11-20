@@ -10,7 +10,7 @@
 
 class SqliteConn {
 public:
-    SqliteConn(const std::string& path);
+    SqliteConn(const std::string& path, bool trimWhitespace);
     std::vector<std::string> col_names(const std::string& table);
     sql::RowVec all_rows(const std::string& table);
     void set_exclude_cols(const std::map<std::string, std::set<std::string>>&);
@@ -21,4 +21,5 @@ private:
     sqlite3* m_db;
     std::vector<std::string> m_colNames;
     std::map<std::string, std::set<std::string>> m_excludeCols;
+    bool m_trimWhitespace;
 };

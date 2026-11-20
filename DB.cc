@@ -51,7 +51,8 @@ const ColSetMap DB::EXCLUDE_COLS{{"pdgdata", {"edition"}},
 
 const ColSetMap DB::POST_EXCLUDE_COLS{{"pdgmeasurement", {"sort"}}};
 
-DB::DB(const string& path) : m_db(path)
+DB::DB(const string& path, bool trimWhitespace)
+  : m_db(path, trimWhitespace)
 {
     m_db.set_exclude_cols(DB::EXCLUDE_COLS);
 

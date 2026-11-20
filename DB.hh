@@ -5,7 +5,7 @@
 
 class DB {
 public:
-    DB(const std::string& path);
+    DB(const std::string& path, bool trimWhitespace);
     const sql::Rows& rows(const sql::tblname_t&) const;
     const sql::ColVec& cols(const sql::tblname_t&) const;
 

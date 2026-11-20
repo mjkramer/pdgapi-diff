@@ -48,5 +48,6 @@ template <class T> struct holds {
 };
 
 std::string replace_all(std::string_view s, std::string_view from, std::string_view to);
+void trimInPlace(std::string& s);
 
 } // namespace util
