@@ -1,9 +1,14 @@
 #include "sql.hh"
 #include "util.hh"
 
+#include <algorithm>
+#include <cctype>
+#include <cstdint>
 #include <ranges>
 #include <string>
+#include <string_view>
 #include <variant>
+#include <vector>
 
 using namespace sql;
 using namespace util;
@@ -21,6 +26,91 @@ static inline string joined(const vector<string>& v, const string& delim)
     return v | views::join_with(delim) | ranges::to<string>();
 }
 
+// Split into runs of alphanumerics; every other character is its own token
+static vector<string_view> tokenize(string_view s)
+{
+    vector<string_view> tokens;
+    size_t i = 0;
+    while (i < s.size()) {
+        size_t j = i + 1;
+        if (isalnum((unsigned char)s[i]))
+            while (j < s.size() and isalnum((unsigned char)s[j]))
+                ++j;
+        tokens.push_back(s.substr(i, j - i));
+        i = j;
+    }
+    return tokens;
+}
+
+// For each token in a, whether it is absent from the LCS of a and b
+// (Claude-written)
+static vector<bool> changed_tokens(const vector<string_view>& a,
+                                   const vector<string_view>& b)
+{
+    // Above this many DP cells, just mark the whole middle as changed
+    constexpr size_t MAX_CELLS = 1 << 22;
+
+    vector<bool> changed(a.size(), false);
+
+    size_t pre = 0;
+    while (pre < a.size() and pre < b.size() and a[pre] == b[pre])
+        ++pre;
+    size_t suf = 0;
+    while (suf < a.size() - pre and suf < b.size() - pre and
+           a[a.size() - 1 - suf] == b[b.size() - 1 - suf])
+        ++suf;
+
+    const size_t n = a.size() - pre - suf, m = b.size() - pre - suf;
+    if (n == 0)
+        return changed;
+    if (m == 0 or (n + 1) * (m + 1) > MAX_CELLS) {
+        fill(changed.begin() + pre, changed.begin() + pre + n, true);
+        return changed;
+    }
+
+    // lcs[i][j] = LCS length of a[pre+i..pre+n) and b[pre+j..pre+m)
+    vector<uint32_t> lcs((n + 1) * (m + 1), 0);
+    auto L = [&](size_t i, size_t j) -> uint32_t& { return lcs[i * (m + 1) + j]; };
+    for (size_t i = n; i-- > 0;)
+        for (size_t j = m; j-- > 0;)
+            L(i, j) = a[pre + i] == b[pre + j] ? L(i + 1, j + 1) + 1
+                                               : max(L(i + 1, j), L(i, j + 1));
+
+    size_t i = 0, j = 0;
+    while (i < n) {
+        if (j < m and a[pre + i] == b[pre + j]) {
+            ++i, ++j;
+        } else if (j == m or L(i + 1, j) >= L(i, j + 1)) {
+            changed[pre + i] = true;
+            ++i;
+        } else {
+            ++j;
+        }
+    }
+    return changed;
+}
+
+// Wrap the tokens of s that don't appear in other in reverse video
+static string highlight_changes(const string& s, const string& other)
+{
+    constexpr string_view REVERSE_ON = "\033[7m", REVERSE_OFF = "\033[27m";
+
+    const auto tokens = tokenize(s);
+    const auto changed = changed_tokens(tokens, tokenize(other));
+
+    string out;
+    bool in_hl = false;
+    for (const auto& [tok, chg] : views::zip(tokens, changed)) {
+        if (chg != in_hl)
+            out += chg ? REVERSE_ON : REVERSE_OFF;
+        in_hl = chg;
+        out += tok;
+    }
+    if (in_hl)
+        out += REVERSE_OFF;
+    return out;
+}
+
 static string format_val(const Val& val, const Val* other = nullptr,
                          const string* diff_hl_color = nullptr)
 {
@@ -31,6 +121,13 @@ static string format_val(const Val& val, const Val* other = nullptr,
     const auto s2 = format("{:q}", *other);
     const auto align_left = holds_alternative<string>(val);
     const auto width = max(s1.size(), s2.size());
+
+    if (diff_hl_color and val != *other and holds_alternative<string>(val) and
+        holds_alternative<string>(*other)) {
+        const auto body = highlight_changes(get<string>(val), get<string>(*other));
+        const auto pad = string(width - s1.size(), ' ');
+        return format("{}\"{}\"{}{}", *diff_hl_color, body, pad, ANSI_RESET);
+    }
 
     const auto s =
       align_left ? format("{:<{}}", s1, width) : format("{:>{}}", s1, width);
