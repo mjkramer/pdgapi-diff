@@ -42,7 +42,8 @@ const ColMap DB::EXTRA_IDENT_COLS{{"pdgdata", {"sort"}},
                                   {"pdgmeasurement", {"comment", "sort"}},
                                   {"pdgmeasurement_values", {"column_name", "sort"}}};
 
-const ColMap DB::FUZZY_COLS{{"pdgfootnote", {"text"}}};
+const ColMap DB::FUZZY_COLS{{"pdgfootnote", {"text"}},
+                            {"pdgtext", {"text"}}};
 
 const ColSetMap DB::EXCLUDE_COLS{{"pdgdata", {"edition"}},
                                  {"pdgfootnote", {"footnote_index", "changebar"}},
